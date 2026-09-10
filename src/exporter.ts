@@ -39,6 +39,33 @@ function displayDate(value?: string): string {
   return `${date.getUTCFullYear()}. ${String(date.getUTCMonth() + 1).padStart(2, '0')}. ${String(date.getUTCDate()).padStart(2, '0')}`;
 }
 
+function koreanNumber(value: number): string {
+  if (!Number.isSafeInteger(value) || value < 0) return value.toLocaleString('ko-KR');
+  if (value === 0) return '영';
+  const digits = ['', '일', '이', '삼', '사', '오', '육', '칠', '팔', '구'];
+  const smallUnits = ['', '십', '백', '천'];
+  const largeUnits = ['', '만', '억', '조'];
+  let remaining = value;
+  let result = '';
+  let largeUnitIndex = 0;
+  while (remaining > 0) {
+    const group = remaining % 10_000;
+    if (group > 0) {
+      let groupText = '';
+      for (let unitIndex = 3; unitIndex >= 0; unitIndex -= 1) {
+        const digit = Math.floor(group / (10 ** unitIndex)) % 10;
+        if (digit === 0) continue;
+        if (digit !== 1 || unitIndex === 0) groupText += digits[digit];
+        groupText += smallUnits[unitIndex];
+      }
+      result = `${groupText}${largeUnits[largeUnitIndex]}${result}`;
+    }
+    remaining = Math.floor(remaining / 10_000);
+    largeUnitIndex += 1;
+  }
+  return result;
+}
+
 function safeItem(item: Transaction): NormalizedTransaction {
   return {
     ...item,
@@ -54,7 +81,7 @@ function recentFirst(items: NormalizedTransaction[]): NormalizedTransaction[] {
 }
 
 function selectedTransactions(items: Transaction[]): NormalizedTransaction[] {
-  return recentFirst(items.map(safeItem).filter((item) => item.selected && !item.cancelled && item.parseErrors.length === 0));
+  return recentFirst(items.map(safeItem).filter((item) => item.selected && !item.cancelled && !item.cancelledBy && item.parseErrors.length === 0));
 }
 
 interface ExpenseLayout {
@@ -85,16 +112,17 @@ function createExpenseLayout(selected: NormalizedTransaction[]): ExpenseLayout {
 
 export function validateAndPreview(items: Transaction[], document: DocumentInfo = {}): PreviewResult {
   const normalized = items.map(safeItem);
-  const selectable = recentFirst(normalized.filter((item) => item.selected && !item.cancelled && item.parseErrors.length === 0));
+  const selectable = recentFirst(normalized.filter((item) => item.selected && !item.cancelled && !item.cancelledBy && item.parseErrors.length === 0));
   const expenseLayout = createExpenseLayout(selectable);
   const errors: PreviewIssue[] = [];
   const warnings: PreviewIssue[] = [];
 
   for (const item of normalized.filter((entry) => entry.selected)) {
     if (item.cancelled) errors.push({ id: item.id, message: '취소 거래는 내보낼 수 없습니다.' });
+    if (item.cancelledBy) errors.push({ id: item.id, message: '취소된 원승인 거래는 내보낼 수 없습니다.' });
     for (const message of item.parseErrors) errors.push({ id: item.id, message });
     if (!item.customer) warnings.push({ id: item.id, message: '고객사명이 비어 있습니다.' });
-    if (!item.category) warnings.push({ id: item.id, message: '비용 분류가 비어 있습니다.' });
+    if (!item.category) warnings.push({ id: item.id, message: '실사용 내역 구분이 비어 있습니다.' });
     if (item.region === '지방' && !item.tripPeriod) warnings.push({ id: item.id, message: '지방 출장 기간이 비어 있습니다.' });
     if (item.claimAmount > item.actualAmount) warnings.push({ id: item.id, message: '청구금액이 실사용금액보다 큽니다.' });
     if (item.duplicate) warnings.push({ id: item.id, message: '중복으로 의심되는 거래입니다.' });
@@ -105,6 +133,7 @@ export function validateAndPreview(items: Transaction[], document: DocumentInfo 
     id: item.id,
     merchant: item.merchant,
     category: item.category,
+    reason: item.reason,
     resolutionRow: 17 + index,
     expenseRow: expenseLayout.rowsById.get(item.id)!,
   }));
@@ -262,13 +291,14 @@ export async function createPaymentRequest(items: Transaction[], document: Docum
 
   const actualTotal = selected.reduce((sum, item) => sum + item.actualAmount, 0);
   const claimTotal = selected.reduce((sum, item) => sum + item.claimAmount, 0);
+  const resolutionTotalRow = 32 + insertedResolutionRows;
   const receiptDate = document.receiptDate || new Date().toISOString().slice(0, 10);
   const dates = selected.map((item) => item.transactionAt?.slice(0, 10)).filter((value): value is string => Boolean(value)).sort();
   const periodStart = document.periodStart || dates[0] || receiptDate;
   const periodEnd = document.periodEnd || dates.at(-1) || receiptDate;
 
-  resolution.getCell('C6').value = `일금 ${claimTotal.toLocaleString('ko-KR')}원 정`;
-  resolution.getCell('R6').value = claimTotal;
+  resolution.getCell('C6').value = { formula: '"일금 "& NUMBERSTRING(R6, 1) & "원 정"', result: `일금 ${koreanNumber(claimTotal)}원 정` };
+  resolution.getCell('R6').value = { formula: `R${resolutionTotalRow}`, result: claimTotal };
   resolution.getCell('C9').value = `기간 : ${periodStart.replaceAll('-', '.')} ~ ${periodEnd.replaceAll('-', '.')}`;
   resolution.getCell('C10').value = `접수자 : ${document.applicant || ''}`;
   resolution.getCell('C11').value = `접수일 : ${receiptDate.replaceAll('-', '.')}`;
@@ -280,7 +310,7 @@ export async function createPaymentRequest(items: Transaction[], document: Docum
 
   selected.forEach((item, index) => {
     const resolutionRow = resolutionDetailRows[index]!;
-    resolution.getCell(`B${resolutionRow}`).value = item.category;
+    resolution.getCell(`B${resolutionRow}`).value = item.reason;
     resolution.getCell(`F${resolutionRow}`).value = item.actualAmount;
     resolution.getCell(`R${resolutionRow}`).value = item.claimAmount;
 
@@ -296,7 +326,6 @@ export async function createPaymentRequest(items: Transaction[], document: Docum
     expenses.getCell(`J${expenseRow}`).value = item.tripPeriod;
   });
 
-  const resolutionTotalRow = 32 + insertedResolutionRows;
   resolution.getCell(`F${resolutionTotalRow}`).value = { formula: `SUM(F17:F${resolutionTotalRow - 1})`, result: actualTotal };
   resolution.getCell(`R${resolutionTotalRow}`).value = { formula: `SUM(R17:R${resolutionTotalRow - 1})`, result: claimTotal };
   updateExpenseTotals(expenses, expenseLayout.externalExtraRows, expenseLayout.internalExtraRows);

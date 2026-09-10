@@ -1,7 +1,7 @@
 import ExcelJS from 'exceljs';
 import * as cheerio from 'cheerio';
 import { randomUUID } from 'node:crypto';
-import { recommendCategory, transactionFingerprint } from './classifier.js';
+import { normalizeMerchant, recommendCategory, transactionFingerprint } from './classifier.js';
 import type { Transaction, UploadedCardFile } from './types.js';
 
 const HEADER_ALIASES = {
@@ -39,9 +39,33 @@ function numberValue(value: unknown): number | null {
   return Number.isFinite(parsed) ? parsed : null;
 }
 
+function excelDate(value: unknown): Date | null {
+  if (value instanceof Date && !Number.isNaN(value.valueOf())) return value;
+  if (typeof value !== 'number' || !Number.isFinite(value)) return null;
+  const converted = new Date(Math.round((value - 25569) * 86_400_000));
+  return Number.isNaN(converted.valueOf()) ? null : converted;
+}
+
+function clock(value: unknown): { hour: number; minute: number } | null {
+  if (value instanceof Date && !Number.isNaN(value.valueOf())) {
+    return { hour: value.getUTCHours(), minute: value.getUTCMinutes() };
+  }
+  if (typeof value === 'number' && Number.isFinite(value)) {
+    const minutes = Math.round(((value % 1) + 1) % 1 * 24 * 60);
+    return { hour: Math.floor(minutes / 60) % 24, minute: minutes % 60 };
+  }
+  const parts = text(value).match(/(\d{1,2})[:시](\d{1,2})/);
+  return parts ? { hour: Number(parts[1]), minute: Number(parts[2]) } : null;
+}
+
 function isoDateTime(dateValue: unknown, timeValue: unknown = ''): string | null {
-  if (dateValue instanceof Date && !Number.isNaN(dateValue.valueOf())) {
-    return dateValue.toISOString().slice(0, 19);
+  const date = excelDate(dateValue);
+  if (date) {
+    const time = clock(timeValue) || { hour: date.getUTCHours(), minute: date.getUTCMinutes() };
+    const year = String(date.getUTCFullYear());
+    const month = String(date.getUTCMonth() + 1).padStart(2, '0');
+    const day = String(date.getUTCDate()).padStart(2, '0');
+    return `${year}-${month}-${day}T${String(time.hour).padStart(2, '0')}:${String(time.minute).padStart(2, '0')}:00`;
   }
   const source = `${text(dateValue)} ${text(timeValue)}`.trim();
   const parts = source.match(/(20\d{2})\D+(\d{1,2})\D+(\d{1,2})(?:\D+(\d{1,2})[:시](\d{1,2}))?/);
@@ -63,8 +87,9 @@ function findHeaderMap(values: unknown[]): Partial<Record<HeaderField, number>> 
 
 function detectCompany(headers: string[], filename: string): string {
   if (headers.includes('거래일') || /shinhan/i.test(filename)) return '신한카드';
+  if (headers.includes('승인일') && headers.includes('카드구분') && headers.includes('카드종류')) return '현대카드';
   if (headers.includes('승인일자') || /samsung|일시불\+할부_카드이용내역조회/i.test(filename)) return '삼성카드';
-  if (/hyundai/i.test(filename)) return '현대카드';
+  if (/hyundai|현대카드/i.test(filename)) return '현대카드';
   return '알 수 없음';
 }
 
@@ -220,9 +245,76 @@ export async function parseCardFile(file: UploadedCardFile, remembered: Record<s
   throw new Error('지원하지 않는 파일 형식입니다. XLSX 또는 카드사 HTML XLS 파일을 사용해 주세요.');
 }
 
+function isPlausibleOriginalDate(originalAt: string | null, cancellationAt: string | null): boolean {
+  if (!originalAt || !cancellationAt) return true;
+  const cancellationDay = new Date(`${cancellationAt.slice(0, 10)}T00:00:00.000Z`);
+  if (Number.isNaN(cancellationDay.getTime())) return true;
+  cancellationDay.setUTCDate(cancellationDay.getUTCDate() + 1);
+  return originalAt.slice(0, 10) <= cancellationDay.toISOString().slice(0, 10);
+}
+
+export function linkCancellations(transactions: Transaction[]): Transaction[] {
+  for (const transaction of transactions) {
+    delete transaction.cancellationOf;
+    delete transaction.cancelledBy;
+    delete transaction.cancellationMatch;
+  }
+
+  const cancellations = transactions
+    .filter((transaction) => transaction.cancelled)
+    .sort((left, right) => String(left.transactionAt || '').localeCompare(String(right.transactionAt || '')));
+
+  for (const cancellation of cancellations) {
+    const eligible = transactions.filter((candidate) => {
+      if (candidate.cancelled || candidate.cancelledBy || candidate.parseErrors.length) return false;
+      if (!cancellation.cardNumber || candidate.cardNumber !== cancellation.cardNumber) return false;
+      if (candidate.cardCompany !== cancellation.cardCompany) return false;
+      // 신한 이용내역은 취소 행보다 원승인 행의 이용일자가 하루 뒤로 표시되는 사례가 있다.
+      return isPlausibleOriginalDate(candidate.transactionAt, cancellation.transactionAt);
+    });
+    const approvalNumber = cancellation.approvalNumber.trim();
+    const approvalMatches = approvalNumber && approvalNumber !== '-'
+      ? eligible.filter((candidate) => candidate.approvalNumber.trim() === approvalNumber)
+      : [];
+
+    if (approvalMatches.length === 1) {
+      connectCancellation(cancellation, approvalMatches[0]!, 'approvalNumber');
+      continue;
+    }
+    if (approvalMatches.length > 1) {
+      cancellation.cancellationMatch = 'ambiguous';
+      continue;
+    }
+
+    const cancellationAmount = cancellation.amount;
+    const merchant = normalizeMerchant(cancellation.merchant);
+    const merchantAmountMatches = cancellationAmount === null || !merchant ? [] : eligible.filter((candidate) => (
+      normalizeMerchant(candidate.merchant) === merchant
+      && candidate.amount !== null
+      && Math.abs(candidate.amount) === Math.abs(cancellationAmount)
+    ));
+    if (merchantAmountMatches.length === 1) {
+      connectCancellation(cancellation, merchantAmountMatches[0]!, 'merchantAmount');
+    } else {
+      cancellation.cancellationMatch = merchantAmountMatches.length > 1 ? 'ambiguous' : 'unmatched';
+    }
+  }
+  return transactions;
+}
+
+function connectCancellation(cancellation: Transaction, original: Transaction, match: 'approvalNumber' | 'merchantAmount'): void {
+  cancellation.cancellationOf = original.id;
+  cancellation.cancellationMatch = match;
+  original.cancelledBy = cancellation.id;
+  original.selected = false;
+}
+
 export function markDuplicates(transactions: Transaction[]): Transaction[] {
   const fingerprints = new Map<string, Transaction[]>();
   for (const transaction of transactions) {
+    delete transaction.duplicate;
+    delete transaction.duplicateOf;
+    if (transaction.cancelled || transaction.cancelledBy) continue;
     const seen = fingerprints.get(transaction.fingerprint) || [];
     seen.push(transaction);
     fingerprints.set(transaction.fingerprint, seen);

@@ -13,7 +13,7 @@ export function PreviewPanel({ preview, busy, onPreview, onExport }: {
   return (
     <Card>
       <CardHeader className="gap-4 lg:flex-row lg:items-start lg:justify-between">
-        <div><CardTitle>4. 요약 및 내보내기</CardTitle><CardDescription>금액과 실제 템플릿 입력 위치를 확인한 후 다운로드합니다.</CardDescription></div>
+        <div><CardTitle>요약 및 내보내기</CardTitle><CardDescription>금액과 실제 템플릿 입력 위치를 확인한 후 다운로드합니다.</CardDescription></div>
         <div className="flex gap-2"><Button variant="outline" disabled={busy} onClick={onPreview}><Eye />미리보기</Button><Button disabled={busy || !summary?.selectedCount || Boolean(preview?.errors.length)} onClick={onExport}>{busy ? <LoaderCircle className="animate-spin" /> : <Download />}다운로드</Button></div>
       </CardHeader>
       <CardContent className="grid gap-5">
@@ -25,8 +25,8 @@ export function PreviewPanel({ preview, busy, onPreview, onExport }: {
         </div>
         {!preview?.mappings.length ? <div className="flex items-center justify-center gap-2 rounded-lg border border-dashed py-10 text-sm text-muted-foreground"><FileOutput />미리보기를 실행하면 템플릿 입력 행이 표시됩니다.</div> : (
           <div className="grid gap-3"><p className="text-sm font-medium">지출결의서 추가 행 {summary?.insertedResolutionRows}개 · 경비사용내역서 추가 행 {summary?.insertedExpenseRows}개</p>
-            <div className="max-h-80 overflow-auto rounded-lg border"><Table><TableHeader><TableRow><TableHead>가맹점</TableHead><TableHead>비용 분류</TableHead><TableHead>지출결의서</TableHead><TableHead>경비사용내역서</TableHead></TableRow></TableHeader><TableBody>
-              {preview.mappings.map((item) => <TableRow key={item.id}><TableCell>{item.merchant}</TableCell><TableCell>{item.category}</TableCell><TableCell>{item.resolutionRow}행</TableCell><TableCell>{item.expenseRow}행</TableCell></TableRow>)}
+            <div className="max-h-80 overflow-auto rounded-lg border"><Table><TableHeader><TableRow><TableHead>가맹점</TableHead><TableHead>실사용 내역 구분</TableHead><TableHead>구분(상세 사유)</TableHead><TableHead>지출결의서</TableHead><TableHead>경비사용내역서</TableHead></TableRow></TableHeader><TableBody>
+              {preview.mappings.map((item) => <TableRow key={item.id}><TableCell>{item.merchant}</TableCell><TableCell>{item.category}</TableCell><TableCell>{item.reason}</TableCell><TableCell>{item.resolutionRow}행</TableCell><TableCell>{item.expenseRow}행</TableCell></TableRow>)}
             </TableBody></Table></div>
           </div>
         )}

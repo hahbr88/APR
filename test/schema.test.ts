@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { classificationBodySchema, itemsBodySchema, transactionSchema } from '../shared/schemas.js';
-import { applicationPeriodFromReceiptDate, tripPeriodFromDateRange } from '../client/src/lib/dates.js';
+import { applicationPeriodFromReceiptDate, dateRangeFromTripPeriod, tripPeriodFromDateRange } from '../client/src/lib/dates.js';
 import { expenseResolutionFilename } from '../shared/filenames.js';
 
 const transaction = {
@@ -41,4 +41,8 @@ test('출장 날짜 범위를 엑셀 표시 형식으로 변환한다', () => {
   assert.equal(tripPeriodFromDateRange('', ''), '');
   assert.equal(tripPeriodFromDateRange('2026-09-04', ''), null);
   assert.equal(tripPeriodFromDateRange('2026-09-05', '2026-09-04'), null);
+  assert.equal(tripPeriodFromDateRange('2026-02-29', '2026-03-01'), null);
+  assert.deepEqual(dateRangeFromTripPeriod('26.08.21-26.09.04'), { startDate: '2026-08-21', endDate: '2026-09-04' });
+  assert.deepEqual(dateRangeFromTripPeriod(''), { startDate: '', endDate: '' });
+  assert.equal(dateRangeFromTripPeriod('2026-08-21~2026-09-04'), null);
 });

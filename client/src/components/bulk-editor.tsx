@@ -10,7 +10,7 @@ import type { BusinessType, Region } from '../../../shared/schemas';
 export interface BulkValues { customer: string; businessType: BusinessType; region: Region; tripPeriod: string }
 interface BulkFormValues { customer: string; businessType: BusinessType; region: Region; tripStart: string; tripEnd: string }
 
-export function BulkEditor({ onApply }: { onApply: (values: BulkValues) => void }) {
+export function BulkEditor({ onApply, layout = 'card', selectedCount }: { onApply: (values: BulkValues) => void; layout?: 'card' | 'panel'; selectedCount?: number }) {
   const [values, setValues] = useState<BulkFormValues>({ customer: '', businessType: '프로젝트', region: '서울', tripStart: '', tripEnd: '' });
   const tripPeriod = values.region === '지방' ? tripPeriodFromDateRange(values.tripStart, values.tripEnd) : '';
   const dateError = values.region === '지방' && tripPeriod === null
@@ -27,9 +27,9 @@ export function BulkEditor({ onApply }: { onApply: (values: BulkValues) => void 
   }
 
   return (
-    <Card>
-      <CardHeader><CardTitle>선택 거래 일괄 편집</CardTitle><CardDescription>체크한 거래에 공통 정보를 한 번에 적용합니다.</CardDescription></CardHeader>
-      <CardContent className="grid gap-4 md:grid-cols-2 xl:grid-cols-[1.2fr_1fr_0.8fr_1fr_1fr_auto] xl:items-end">
+    <Card className={layout === 'panel' ? 'border-0 shadow-none' : ''}>
+      {layout === 'card' && <CardHeader><CardTitle>선택 거래 일괄 편집{selectedCount ? ` · ${selectedCount}건` : ''}</CardTitle><CardDescription>체크한 거래에 공통 정보를 한 번에 적용합니다.</CardDescription></CardHeader>}
+      <CardContent className={layout === 'panel' ? 'grid gap-4 pt-6' : 'grid gap-4 md:grid-cols-2 xl:grid-cols-[1.2fr_1fr_0.8fr_1fr_1fr_auto] xl:items-end'}>
         <Field label="고객사명"><Input value={values.customer} placeholder="선택 거래에 적용" onChange={(e) => setValues({ ...values, customer: e.target.value })} /></Field>
         <Field label="업무구분"><NativeSelect value={values.businessType} onChange={(value) => setValues({ ...values, businessType: value as BusinessType })} options={['프로젝트', '유지보수', '링스테크내부', '기타']} /></Field>
         <Field label="지역구분"><NativeSelect value={values.region} onChange={(value) => changeRegion(value as Region)} options={['서울', '지방']} /></Field>

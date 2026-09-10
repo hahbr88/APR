@@ -23,8 +23,21 @@ export function applicationPeriodFromReceiptDate(receiptDate: string): Applicati
 
 export function tripPeriodFromDateRange(startDate: string, endDate: string): string | null {
   if (!startDate && !endDate) return '';
-  const validDate = /^\d{4}-\d{2}-\d{2}$/;
-  if (!validDate.test(startDate) || !validDate.test(endDate) || startDate > endDate) return null;
+  const isValidDate = (value: string) => {
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(value)) return false;
+    const date = new Date(`${value}T00:00:00Z`);
+    return !Number.isNaN(date.getTime()) && date.toISOString().slice(0, 10) === value;
+  };
+  if (!isValidDate(startDate) || !isValidDate(endDate) || startDate > endDate) return null;
   const shortDate = (value: string) => value.slice(2).replaceAll('-', '.');
   return `${shortDate(startDate)}-${shortDate(endDate)}`;
+}
+
+export function dateRangeFromTripPeriod(tripPeriod: string) {
+  if (!tripPeriod) return { startDate: '', endDate: '' };
+  const match = /^(\d{2})\.(\d{2})\.(\d{2})-(\d{2})\.(\d{2})\.(\d{2})$/.exec(tripPeriod);
+  if (!match) return null;
+  const startDate = `20${match[1]}-${match[2]}-${match[3]}`;
+  const endDate = `20${match[4]}-${match[5]}-${match[6]}`;
+  return tripPeriodFromDateRange(startDate, endDate) === tripPeriod ? { startDate, endDate } : null;
 }

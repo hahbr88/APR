@@ -43,6 +43,10 @@ export async function saveDraft(draft: Draft): Promise<Draft> {
   }));
 }
 
+export async function deleteDraft(id: string): Promise<void> {
+  await parseResponse(await fetch(`/api/drafts/${encodeURIComponent(id)}`, { method: 'DELETE' }));
+}
+
 export async function downloadPaymentRequest(items: Transaction[], document: DocumentInfo): Promise<void> {
   const response = await fetch('/api/export', {
     method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ items, document }),

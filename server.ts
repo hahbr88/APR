@@ -4,7 +4,7 @@ import path from 'node:path';
 import { randomUUID } from 'node:crypto';
 import { normalizeMerchant } from './src/classifier.js';
 import { classificationStore, draftStore } from './src/storage.js';
-import { markDuplicates, parseCardFile } from './src/parsers.js';
+import { linkCancellations, markDuplicates, parseCardFile } from './src/parsers.js';
 import { createPaymentRequest, validateAndPreview } from './src/exporter.js';
 import type { Transaction } from './src/types.js';
 import { classificationBodySchema, draftSchema, itemsBodySchema } from './shared/schemas.js';
@@ -38,6 +38,7 @@ app.post('/api/import', upload.array('files', 20), async (request, response) => 
     }
   }
 
+  linkCancellations(transactions);
   markDuplicates(transactions);
   return response.json({
     batchId: randomUUID(),
@@ -48,6 +49,8 @@ app.post('/api/import', upload.array('files', 20), async (request, response) => 
       parsed: transactions.length,
       rowErrors: transactions.filter((item) => item.parseErrors.length > 0).length,
       cancelled: transactions.filter((item) => item.cancelled).length,
+      linkedCancellations: transactions.filter((item) => item.cancelled && item.cancellationOf).length,
+      unmatchedCancellations: transactions.filter((item) => item.cancelled && !item.cancellationOf).length,
       duplicates: transactions.filter((item) => item.duplicate).length,
     },
   });

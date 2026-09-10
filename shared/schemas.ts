@@ -8,6 +8,7 @@ const nullableAmountSchema = z.number().finite().nullable();
 export const businessTypeSchema = z.enum(['프로젝트', '유지보수', '링스테크내부', '기타']);
 export const regionSchema = z.enum(['서울', '지방']);
 export const categorySourceSchema = z.enum(['remembered', 'rule', 'default']);
+export const cancellationMatchSchema = z.enum(['approvalNumber', 'merchantAmount', 'ambiguous', 'unmatched']);
 
 export const documentSchema = z.strictObject({
   applicant: z.string().trim().max(50).optional(), receiptDate: optionalDateSchema,
@@ -19,6 +20,7 @@ export const transactionSchema = z.strictObject({
   merchant: z.string().trim().max(200), amount: nullableAmountSchema, approvalNumber: z.string().max(100),
   status: z.string().max(50), cancellationDate: z.string().max(50), installment: z.string().max(50),
   cancelled: z.boolean(), parseErrors: z.array(z.string().max(300)).max(20), fingerprint: z.string().max(500),
+  cancellationOf: z.string().optional(), cancelledBy: z.string().optional(), cancellationMatch: cancellationMatchSchema.optional(),
   duplicate: z.boolean().optional(), duplicateOf: z.string().optional(), category: z.string().trim().min(1).max(50),
   categorySource: categorySourceSchema, selected: z.boolean(), customer: z.string().trim().max(100),
   businessType: businessTypeSchema, region: regionSchema, reason: z.string().trim().max(300),
@@ -54,7 +56,7 @@ export type CategorySource = z.infer<typeof categorySourceSchema>;
 export type FileError = z.infer<typeof fileErrorSchema>;
 
 export interface PreviewIssue { id: string; message: string }
-export interface PreviewMapping { id: string; merchant: string; category: string; resolutionRow: number; expenseRow: number }
+export interface PreviewMapping { id: string; merchant: string; category: string; reason: string; resolutionRow: number; expenseRow: number }
 export interface PreviewResult {
   document: DocumentInfo;
   summary: {
@@ -69,5 +71,5 @@ export interface ImportResult {
   batchId: string;
   transactions: Transaction[];
   fileErrors: FileError[];
-  stats: { files: number; parsed: number; rowErrors: number; cancelled: number; duplicates: number };
+  stats: { files: number; parsed: number; rowErrors: number; cancelled: number; linkedCancellations: number; unmatchedCancellations: number; duplicates: number };
 }
