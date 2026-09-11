@@ -1,4 +1,4 @@
-import type { DocumentInfo, Draft, ImportResult, PreviewResult, Transaction } from '../../../shared/schemas';
+import type { AppSettings, DocumentInfo, Draft, ImportResult, PreviewResult, Transaction } from '../../../shared/schemas';
 import { expenseResolutionFilename } from '../../../shared/filenames';
 
 export class ApiError extends Error {
@@ -30,6 +30,16 @@ export async function createPreview(items: Transaction[], document: DocumentInfo
 export async function rememberClassification(merchant: string, category: string): Promise<void> {
   await parseResponse(await fetch('/api/classifications', {
     method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ merchant, category }),
+  }));
+}
+
+export async function getAppSettings(): Promise<AppSettings> {
+  return parseResponse(await fetch('/api/settings'));
+}
+
+export async function updateAppSettings(settings: AppSettings): Promise<AppSettings> {
+  return parseResponse(await fetch('/api/settings', {
+    method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(settings),
   }));
 }
 

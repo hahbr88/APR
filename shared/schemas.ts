@@ -39,6 +39,9 @@ export const itemsBodySchema = z.strictObject({
 export const classificationBodySchema = z.strictObject({
   merchant: z.string().trim().min(1).max(200), category: z.string().trim().min(1).max(50),
 });
+export const appSettingsSchema = z.strictObject({
+  rememberedApplicant: z.string().trim().min(1).max(50).nullable(),
+});
 export const fileErrorSchema = z.strictObject({ file: z.string().max(260), message: z.string().max(500) });
 export const draftSchema = z.strictObject({
   id: z.string().optional(), name: z.string().trim().min(1).max(100).optional(), document: documentSchema.optional(),
@@ -54,6 +57,7 @@ export type BusinessType = z.infer<typeof businessTypeSchema>;
 export type Region = z.infer<typeof regionSchema>;
 export type CategorySource = z.infer<typeof categorySourceSchema>;
 export type FileError = z.infer<typeof fileErrorSchema>;
+export type AppSettings = z.infer<typeof appSettingsSchema>;
 
 export interface PreviewIssue { id: string; message: string }
 export interface PreviewMapping { id: string; merchant: string; category: string; reason: string; resolutionRow: number; expenseRow: number }

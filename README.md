@@ -22,6 +22,7 @@
 - 날짜·금액·취소 상태·중복 등 오류 및 경고 별도 표시
 - 작성 중인 내역을 초안으로 저장하고 다시 불러오기
 - 저장한 초안 삭제·복구 및 현재 작업 초기화
+- 최초 입력한 접수자를 로컬에 기억하고 변경 시 문서별 사용 여부 확인
 - 취소 거래는 원승인 거래와 자동 연결하고 두 거래 모두 내보내기 대상에서 제외하며, 연결하지 못한 취소 건은 확인 필요로 표시
 - 같은 거래로 추정되는 항목은 중복 경고 표시
 - 15건을 초과하면 템플릿에 상세 행을 자동 삽입
@@ -79,6 +80,24 @@ pnpm test
 ```
 
 `pnpm dev` 실행 시 API는 `http://localhost:3000`, Vite 개발 화면은 `http://localhost:5173`에서 실행됩니다.
+
+## Electron 알파 빌드
+
+Windows x64 데스크톱 앱은 다음 명령으로 실행하고 패키징합니다.
+
+```bash
+pnpm electron:dev
+pnpm electron:smoke
+pnpm electron:dir
+pnpm electron:dist
+```
+
+- `electron:dev`: 현재 소스를 빌드한 뒤 Electron 창으로 실행합니다.
+- `electron:smoke`: Electron 내부 서버, 화면 진입점 및 템플릿 접근을 자동 확인합니다.
+- `electron:dir`: `release/win-unpacked`에 설치 없는 테스트 패키지를 만듭니다.
+- `electron:dist`: `release`에 Portable 실행 파일과 NSIS 설치 파일을 만듭니다.
+
+Electron에서는 충돌을 피하기 위해 `127.0.0.1`의 임의 포트를 사용합니다. 초안과 가맹점 분류는 설치 폴더가 아닌 운영체제의 Electron `userData` 폴더에 저장되므로 앱 업데이트 후에도 유지됩니다. 알파 빌드는 코드 서명과 전용 앱 아이콘을 아직 적용하지 않습니다.
 
 ## 기술 구성
 

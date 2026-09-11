@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useForm, useWatch } from 'react-hook-form';
 import { ArrowLeft, ArrowRight, ListChecks, RotateCcw, Save, Undo2, X } from 'lucide-react';
 import { Alert, AlertDescription } from '@/components/ui/alert';
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { BulkEditor, type BulkValues } from '@/components/bulk-editor';
@@ -11,7 +12,7 @@ import { FileUpload } from '@/components/file-upload';
 import { IssuesPanel, type DisplayIssue } from '@/components/issues-panel';
 import { PreviewPanel } from '@/components/preview-panel';
 import { TransactionTable } from '@/components/transaction-table';
-import { ApiError, createPreview, deleteDraft, downloadPaymentRequest, importFiles, listDrafts, rememberClassification, saveDraft } from '@/lib/api';
+import { ApiError, createPreview, deleteDraft, downloadPaymentRequest, getAppSettings, importFiles, listDrafts, rememberClassification, saveDraft, updateAppSettings } from '@/lib/api';
 import { applicationPeriodFromReceiptDate } from '@/lib/dates';
 import { documentSchema, type DocumentInfo, type Draft, type FileError, type ImportResult, type PreviewResult, type Transaction } from '../../shared/schemas';
 
@@ -19,9 +20,9 @@ type FunnelStep = 1 | 2 | 3 | 4;
 type Notice = { type: 'success' | 'error'; message: string; undoDraft?: Draft };
 
 const today = () => new Date().toISOString().slice(0, 10);
-const initialDocument = (): DocumentFormValues => {
+const initialDocument = (applicant = ''): DocumentFormValues => {
   const receiptDate = today();
-  return { applicant: '', receiptDate, ...applicationPeriodFromReceiptDate(receiptDate)! };
+  return { applicant, receiptDate, ...applicationPeriodFromReceiptDate(receiptDate)! };
 };
 
 export function App() {
@@ -36,11 +37,15 @@ export function App() {
   const [bulkEditorOpen, setBulkEditorOpen] = useState(false);
   const [busy, setBusy] = useState(false);
   const [notice, setNotice] = useState<Notice | null>(null);
+  const [rememberedApplicant, setRememberedApplicant] = useState<string | null>(null);
+  const [settingsLoaded, setSettingsLoaded] = useState(false);
+  const [applicantOverride, setApplicantOverride] = useState<string | null>(null);
+  const [pendingApplicantChange, setPendingApplicantChange] = useState<{ previous: string | null; next: string } | null>(null);
   const form = useForm<DocumentFormValues>({ defaultValues: initialDocument() });
   const [applicationPeriodStart, applicationPeriodEnd] = useWatch({ control: form.control, name: ['periodStart', 'periodEnd'] });
   const selectedCount = items.filter((item) => item.selected).length;
 
-  useEffect(() => { void refreshDrafts(); }, []);
+  useEffect(() => { void refreshDrafts(); void loadSettings(); }, []);
   useEffect(() => {
     if (!notice) return;
     const timer = window.setTimeout(() => setNotice(null), notice.undoDraft || notice.type === 'error' ? 6000 : 3200);
@@ -64,6 +69,15 @@ export function App() {
   async function refreshDrafts() {
     try { setDrafts(await listDrafts()); } catch (error) { showError(error); }
   }
+  async function loadSettings() {
+    try {
+      const settings = await getAppSettings();
+      setRememberedApplicant(settings.rememberedApplicant);
+      if (settings.rememberedApplicant && !form.getValues('applicant')) {
+        form.setValue('applicant', settings.rememberedApplicant, { shouldDirty: false });
+      }
+    } catch (error) { showError(error); } finally { setSettingsLoaded(true); }
+  }
   function showError(error: unknown) {
     const message = error instanceof Error ? error.message : String(error);
     const details = error instanceof ApiError ? error.issues.slice(0, 3).map((issue) => `${issue.path}: ${issue.message}`).join(' · ') : '';
@@ -84,6 +98,43 @@ export function App() {
     form.setValue('periodStart', period.periodStart, { shouldDirty: true });
     form.setValue('periodEnd', period.periodEnd, { shouldDirty: true });
     invalidatePreview();
+  }
+
+  async function handleDocumentNext() {
+    const documentInfo = currentDocument();
+    if (!documentInfo) return;
+    const applicant = documentInfo.applicant?.trim() || '';
+    if (rememberedApplicant && applicant && applicant !== rememberedApplicant && applicant !== applicantOverride) {
+      setPendingApplicantChange({ previous: rememberedApplicant, next: applicant });
+      return;
+    }
+    if (!rememberedApplicant && applicant && applicant !== applicantOverride) {
+      setPendingApplicantChange({ previous: null, next: applicant });
+      return;
+    }
+    setStep(3);
+  }
+
+  async function rememberChangedApplicant() {
+    if (!pendingApplicantChange) return;
+    setBusy(true);
+    try {
+      const settings = await updateAppSettings({ rememberedApplicant: pendingApplicantChange.next });
+      setRememberedApplicant(settings.rememberedApplicant);
+      setApplicantOverride(null);
+      setPendingApplicantChange(null);
+      setStep(3);
+      setNotice({ type: 'success', message: pendingApplicantChange.previous
+        ? `기본 접수자를 “${pendingApplicantChange.next}”(으)로 변경했습니다.`
+        : `접수자 “${pendingApplicantChange.next}”을 다음 문서에도 사용합니다.` });
+    } catch (error) { showError(error); } finally { setBusy(false); }
+  }
+
+  function useApplicantOnce() {
+    if (!pendingApplicantChange) return;
+    setApplicantOverride(pendingApplicantChange.next);
+    setPendingApplicantChange(null);
+    setStep(3);
   }
 
   const handleUpload = async (files: File[]) => {
@@ -174,6 +225,7 @@ export function App() {
   function handleLoadDraft(draft: Draft) {
     setItems(structuredClone(draft.items)); setFileErrors(structuredClone(draft.fileErrors || [])); setStats(null); setPreview(null); setActiveDraft(draft);
     form.reset({ applicant: draft.document?.applicant || '', receiptDate: draft.document?.receiptDate || today(), periodStart: draft.document?.periodStart || '', periodEnd: draft.document?.periodEnd || '' });
+    setApplicantOverride(draft.document?.applicant && draft.document.applicant !== rememberedApplicant ? draft.document.applicant : null);
     setStep(3);
     setNotice({ type: 'success', message: `“${draft.name}” 초안을 불러왔습니다.` });
   }
@@ -196,7 +248,8 @@ export function App() {
   function resetWorkspace() {
     if ((items.length > 0 || form.formState.isDirty || activeDraft) && !window.confirm('현재 업로드 및 편집 내용을 모두 비우고 새로 작성할까요?')) return;
     setStep(1); setItems([]); setFileErrors([]); setStats(null); setPreview(null); setActiveDraft(null); setBulkEditorOpen(false); setWorkspaceKey((value) => value + 1);
-    form.reset(initialDocument());
+    form.reset(initialDocument(rememberedApplicant || ''));
+    setApplicantOverride(null); setPendingApplicantChange(null);
     setNotice({ type: 'success', message: '새 작업을 시작합니다.' });
   }
 
@@ -230,7 +283,7 @@ export function App() {
       {step === 2 && <section className="mx-auto grid w-full max-w-4xl gap-5">
         <StepHeading step={2} title="문서 정보를 입력해 주세요" description="접수일을 기준으로 신청기간이 자동 계산되며 직접 수정할 수도 있습니다." />
         <DocumentPanel register={form.register} onReceiptDateChange={handleReceiptDateChange} />
-        <StepNavigation onBack={() => setStep(1)} nextLabel="거래 선택하기" nextDisabled={busy} onNext={() => { if (currentDocument()) setStep(3); }} />
+        <StepNavigation onBack={() => setStep(1)} nextLabel="거래 선택하기" nextDisabled={busy || !settingsLoaded} onNext={() => void handleDocumentNext()} />
       </section>}
 
       {step === 3 && <section className="grid gap-5">
@@ -257,6 +310,21 @@ export function App() {
       <div className="sticky top-0 z-10 flex items-center justify-between border-b bg-background px-5 py-4"><div><p className="font-semibold">일괄편집</p><p className="text-xs text-muted-foreground">선택한 {selectedCount}건에 적용</p></div><Button type="button" size="icon" variant="ghost" aria-label="닫기" onClick={() => setBulkEditorOpen(false)}><X /></Button></div>
       <BulkEditor layout="panel" selectedCount={selectedCount} onApply={applyBulk} />
     </aside></>}
+    <AlertDialog open={Boolean(pendingApplicantChange)} onOpenChange={(open) => { if (!open) setPendingApplicantChange(null); }}>
+      <AlertDialogContent>
+        <AlertDialogHeader>
+          <AlertDialogTitle>{pendingApplicantChange?.previous ? '기본 접수자를 변경할까요?' : '접수자를 기억할까요?'}</AlertDialogTitle>
+          <AlertDialogDescription>{pendingApplicantChange?.previous
+            ? <>저장된 접수자 “{pendingApplicantChange.previous}”와 현재 입력한 “{pendingApplicantChange.next}”이(가) 다릅니다. 현재 이름을 다음 문서에도 사용하시겠습니까?</>
+            : <>입력한 접수자 “{pendingApplicantChange?.next}”을 다음 문서에도 자동으로 입력할 수 있습니다.</>}</AlertDialogDescription>
+        </AlertDialogHeader>
+        <AlertDialogFooter>
+          <AlertDialogCancel disabled={busy}>취소</AlertDialogCancel>
+          <AlertDialogAction disabled={busy} className="border border-input bg-background text-foreground hover:bg-accent" onClick={useApplicantOnce}>이번 문서에서만 사용</AlertDialogAction>
+          <AlertDialogAction disabled={busy} onClick={(event) => { event.preventDefault(); void rememberChangedApplicant(); }}>{pendingApplicantChange?.previous ? '변경하여 기억' : '기억하기'}</AlertDialogAction>
+        </AlertDialogFooter>
+      </AlertDialogContent>
+    </AlertDialog>
   </div>;
 }
 

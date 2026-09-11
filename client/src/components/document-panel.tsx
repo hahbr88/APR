@@ -15,7 +15,9 @@ export function DocumentPanel({ register, onReceiptDateChange }: Props) {
     <Card>
       <CardHeader><CardTitle>문서 정보</CardTitle><CardDescription>접수 정보와 신청 기간을 작성합니다.</CardDescription></CardHeader>
       <CardContent className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
-        <Field label="접수자"><Input placeholder="홍길동" {...register('applicant')} /></Field>
+        <Field label="접수자">
+          <Input autoComplete="name" {...register('applicant')} />
+        </Field>
         <Field label="접수일"><Input type="date" {...register('receiptDate', { onChange: (event) => onReceiptDateChange(event.target.value) })} /></Field>
         <Field label="신청기간 시작"><Input type="date" {...register('periodStart')} /></Field>
         <Field label="신청기간 종료"><Input type="date" {...register('periodEnd')} /></Field>

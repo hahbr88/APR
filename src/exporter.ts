@@ -8,6 +8,11 @@ const EXTERNAL_EXPENSE_START_ROW = 8;
 const EXTERNAL_EXPENSE_CAPACITY = 10;
 const INTERNAL_EXPENSE_START_ROW = 19;
 const INTERNAL_EXPENSE_CAPACITY = 3;
+let paymentRequestTemplate = path.resolve('assets/payment-request-template.xlsx');
+
+export function configurePaymentRequestTemplate(templatePath: string): void {
+  paymentRequestTemplate = path.resolve(templatePath);
+}
 
 type NormalizedTransaction = Omit<Transaction, 'actualAmount' | 'claimAmount'> & {
   actualAmount: number;
@@ -258,7 +263,7 @@ export async function createPaymentRequest(items: Transaction[], document: Docum
   const selected = selectedTransactions(items);
   if (selected.length === 0) throw new Error('내보낼 거래가 없습니다.');
 
-  const template = await fs.readFile(path.resolve('assets/payment-request-template.xlsx'));
+  const template = await fs.readFile(paymentRequestTemplate);
   const workbook = new ExcelJS.Workbook();
   await workbook.xlsx.load(template as unknown as Parameters<typeof workbook.xlsx.load>[0]);
   workbook.creator = 'Expense Resolution';

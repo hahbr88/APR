@@ -1,0 +1,26 @@
+appId: com.autopaymentrequest.desktop
+productName: 지출결의서 작성
+asar: true
+directories:
+  output: release
+files:
+  - dist/**/*
+  - package.json
+extraResources:
+  - from: assets/payment-request-template.xlsx
+    to: assets/payment-request-template.xlsx
+win:
+  executableName: AutoPaymentRequest
+  target:
+    - target: portable
+      arch:
+        - x64
+    - target: nsis
+      arch:
+        - x64
+nsis:
+  oneClick: false
+  allowToChangeInstallationDirectory: true
+  createDesktopShortcut: true
+  createStartMenuShortcut: true
+  shortcutName: 지출결의서 작성

@@ -2,11 +2,25 @@ import fs from 'node:fs/promises';
 import path from 'node:path';
 import { randomUUID } from 'node:crypto';
 import type { Draft } from './types.js';
-import { draftListSchema } from '../shared/schemas.js';
+import { appSettingsSchema, draftListSchema, type AppSettings } from '../shared/schemas.js';
 
-const dataDirectory = path.resolve('data');
-const classificationFile = path.join(dataDirectory, 'classifications.json');
-const draftFile = path.join(dataDirectory, 'drafts.json');
+let dataDirectory = path.resolve('data');
+
+export function configureStorageDirectory(directory: string): void {
+  dataDirectory = path.resolve(directory);
+}
+
+function classificationFile(): string {
+  return path.join(dataDirectory, 'classifications.json');
+}
+
+function draftFile(): string {
+  return path.join(dataDirectory, 'drafts.json');
+}
+
+function settingsFile(): string {
+  return path.join(dataDirectory, 'settings.json');
+}
 
 async function readJson<T>(file: string, fallback: T): Promise<T> {
   try {
@@ -26,19 +40,19 @@ async function writeJson(file: string, value: unknown): Promise<void> {
 
 export const classificationStore = {
   async all(): Promise<Record<string, string>> {
-    return readJson(classificationFile, {});
+    return readJson(classificationFile(), {});
   },
   async remember(merchantKey: string, category: string): Promise<Record<string, string>> {
     const values = await this.all();
     values[merchantKey] = category;
-    await writeJson(classificationFile, values);
+    await writeJson(classificationFile(), values);
     return values;
   },
 };
 
 export const draftStore = {
   async all(): Promise<Draft[]> {
-    return draftListSchema.parse(await readJson<unknown>(draftFile, []));
+    return draftListSchema.parse(await readJson<unknown>(draftFile(), []));
   },
   async save(draft: Draft): Promise<Draft> {
     const drafts = await this.all();
@@ -53,13 +67,24 @@ export const draftStore = {
     const existing = drafts.findIndex(({ id }) => id === saved.id);
     if (existing >= 0) drafts[existing] = saved;
     else drafts.unshift(saved);
-    await writeJson(draftFile, drafts);
+    await writeJson(draftFile(), drafts);
     return saved;
   },
   async remove(id: string): Promise<boolean> {
     const drafts = await this.all();
     const filtered = drafts.filter((draft) => draft.id !== id);
-    await writeJson(draftFile, filtered);
+    await writeJson(draftFile(), filtered);
     return filtered.length !== drafts.length;
+  },
+};
+
+export const settingsStore = {
+  async all(): Promise<AppSettings> {
+    return appSettingsSchema.parse(await readJson<unknown>(settingsFile(), { rememberedApplicant: null }));
+  },
+  async save(settings: AppSettings): Promise<AppSettings> {
+    const validated = appSettingsSchema.parse(settings);
+    await writeJson(settingsFile(), validated);
+    return validated;
   },
 };

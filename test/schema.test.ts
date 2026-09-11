@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { classificationBodySchema, itemsBodySchema, transactionSchema } from '../shared/schemas.js';
+import { appSettingsSchema, classificationBodySchema, itemsBodySchema, transactionSchema } from '../shared/schemas.js';
 import { applicationPeriodFromReceiptDate, dateRangeFromTripPeriod, tripPeriodFromDateRange } from '../client/src/lib/dates.js';
 import { expenseResolutionFilename } from '../shared/filenames.js';
 
@@ -20,6 +20,12 @@ test('음수 청구금액과 정의되지 않은 요청 필드를 거부한다',
   assert.equal(transactionSchema.safeParse({ ...transaction, claimAmount: -1 }).success, false);
   assert.equal(transactionSchema.safeParse({ ...transaction, status: '전체취소', cancelled: true, amount: -18200, actualAmount: -18200, claimAmount: -18200 }).success, true);
   assert.equal(classificationBodySchema.safeParse({ merchant: '철도승차권결제', category: '교통비', unexpected: true }).success, false);
+});
+
+test('기억할 접수자 설정을 검증한다', () => {
+  assert.deepEqual(appSettingsSchema.parse({ rememberedApplicant: ' 하병노 ' }), { rememberedApplicant: '하병노' });
+  assert.equal(appSettingsSchema.safeParse({ rememberedApplicant: null }).success, true);
+  assert.equal(appSettingsSchema.safeParse({ rememberedApplicant: '' }).success, false);
 });
 
 test('접수일을 기준으로 전월 같은 날짜 다음 날부터 신청기간을 계산한다', () => {
