@@ -11,6 +11,11 @@ let mainWindow: BrowserWindow | null = null;
 let localServer: Server | null = null;
 let applicationUrl = '';
 
+function configureUserDataPath(): void {
+  if (app.isPackaged) return;
+  app.setPath('userData', path.join(app.getPath('appData'), '지출결의서 작성-dev'));
+}
+
 function applicationPath(...segments: string[]): string {
   return path.join(app.getAppPath(), ...segments);
 }
@@ -77,6 +82,7 @@ async function startDesktopApp(): Promise<void> {
   createWindow();
 }
 
+configureUserDataPath();
 const hasSingleInstanceLock = app.requestSingleInstanceLock();
 if (!hasSingleInstanceLock) app.quit();
 else {

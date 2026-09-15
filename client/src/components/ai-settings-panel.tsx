@@ -7,16 +7,16 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import type { AiSettingsResponse, AiSettingsUpdate, LlmProviderName } from '../../../shared/schemas';
 
-const defaultModels: Record<LlmProviderName, string> = { gemini: 'gemini-3.8-flash', groq: 'openai/gpt-oss-20b' };
+const defaultModels: Record<LlmProviderName, string> = { groq: 'openai/gpt-oss-20b', gemini: 'gemini-3.8-flash' };
 const modelOptions: Record<LlmProviderName, Array<{ value: string; label: string }>> = {
-  gemini: [
-    { value: 'gemini-3.8-flash', label: 'Gemini 3.8 Flash' },
-    { value: 'gemini-3.5-flash-lite', label: 'Gemini 3.5 Flash-Lite' },
-  ],
   groq: [
     { value: 'openai/gpt-oss-20b', label: 'GPT-OSS 20B (권장 · 빠름)' },
     { value: 'openai/gpt-oss-120b', label: 'GPT-OSS 120B (정확도 우선)' },
     { value: 'qwen/qwen3.8-27b', label: 'Qwen 3.8 27B (미리보기)' },
+  ],
+  gemini: [
+    { value: 'gemini-3.8-flash', label: 'Gemini 3.8 Flash' },
+    { value: 'gemini-3.5-flash-lite', label: 'Gemini 3.5 Flash-Lite' },
   ],
 };
 
@@ -61,7 +61,7 @@ export function AiSettingsPanel({ settings, busy, onClose, onSave, onTest, onDel
       <div className="grid gap-6 p-6">
         <label className="flex items-start gap-3 rounded-lg border p-4"><Checkbox className="mt-0.5" checked={values.enabled} disabled={!providerHasStoredKey && !apiKey} onCheckedChange={(checked) => setValues({ ...values, enabled: checked === true })} /><span><strong className="block text-sm">AI 자동완성 사용</strong><span className="text-xs text-muted-foreground">꺼져 있으면 AI 요청 버튼과 외부 전송이 비활성화됩니다.</span></span></label>
         <div className="grid grid-cols-2 gap-4">
-          <Field label="공급자"><select className="h-9 w-full rounded-md border bg-background px-3 text-sm" value={values.provider} onChange={(event) => changeProvider(event.target.value as LlmProviderName)}><option value="gemini">Gemini</option><option value="groq">Groq (권장)</option></select></Field>
+          <Field label="공급자"><select className="h-9 w-full rounded-md border bg-background px-3 text-sm" value={values.provider} onChange={(event) => changeProvider(event.target.value as LlmProviderName)}><option value="groq">Groq (권장)</option><option value="gemini">Gemini</option></select></Field>
           <Field label="모델"><select className="h-9 w-full rounded-md border bg-background px-3 text-sm" value={values.model} onChange={(event) => setValues({ ...values, model: event.target.value })}>{modelOptions[values.provider].map((model) => <option key={model.value} value={model.value}>{model.label}</option>)}</select></Field>
         </div>
         <Field label="개인 API 키">
