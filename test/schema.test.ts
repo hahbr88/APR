@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { appSettingsSchema, classificationBodySchema, itemsBodySchema, transactionSchema } from '../shared/schemas.js';
+import { aiSettingsUpdateSchema, aiSuggestionListSchema, appSettingsSchema, classificationBodySchema, itemsBodySchema, recoveryDraftSchema, transactionSchema } from '../shared/schemas.js';
 import { applicationPeriodFromReceiptDate, dateRangeFromTripPeriod, tripPeriodFromDateRange } from '../client/src/lib/dates.js';
 import { expenseResolutionFilename } from '../shared/filenames.js';
 
@@ -26,6 +26,21 @@ test('기억할 접수자 설정을 검증한다', () => {
   assert.deepEqual(appSettingsSchema.parse({ rememberedApplicant: ' 하병노 ' }), { rememberedApplicant: '하병노' });
   assert.equal(appSettingsSchema.safeParse({ rememberedApplicant: null }).success, true);
   assert.equal(appSettingsSchema.safeParse({ rememberedApplicant: '' }).success, false);
+});
+
+test('AI 설정과 구조화된 추천 결과를 검증한다', () => {
+  assert.equal(aiSettingsUpdateSchema.safeParse({ enabled: false, provider: 'gemini', model: 'gemini-3.8-flash', companyGuidelines: '', categoryGuidelines: '', reasonMaxLength: 30 }).success, true);
+  assert.equal(aiSuggestionListSchema.safeParse([{ id: 'transaction-1', category: '교통비', reason: '철도 이용' }]).success, true);
+  assert.equal(aiSuggestionListSchema.safeParse([{ id: 'transaction-1', category: '임의 분류', reason: '철도 이용' }]).success, false);
+});
+
+test('자동 복구 초안에 거래와 AI 체크포인트를 함께 저장한다', () => {
+  assert.equal(recoveryDraftSchema.safeParse({
+    document: { applicant: '테스트', receiptDate: '2026-09-15', periodStart: '2026-08-16', periodEnd: '2026-09-15' },
+    items: [transaction], fileErrors: [],
+    aiSuggestions: [{ id: transaction.id, category: '교통비', reason: '철도 이용' }],
+    updatedAt: new Date().toISOString(),
+  }).success, true);
 });
 
 test('접수일을 기준으로 전월 같은 날짜 다음 날부터 신청기간을 계산한다', () => {

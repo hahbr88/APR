@@ -8,12 +8,11 @@ import { Checkbox } from '@/components/ui/checkbox';
 import { Input } from '@/components/ui/input';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { dateRangeFromTripPeriod, tripPeriodFromDateRange } from '@/lib/dates';
-import type { BusinessType, Region, Transaction } from '../../../shared/schemas';
+import { expenseCategories, type BusinessType, type Region, type Transaction } from '../../../shared/schemas';
 
 const features = tableFeatures({});
 const columnHelper = createColumnHelper<typeof features, Transaction>();
 const money = new Intl.NumberFormat('ko-KR');
-const categories = ['아침식대', '점심식대', '저녁식대', '식대', '식대/소모품비', '숙박비', '교통비', '차량유지비', '소모품비', '복리후생비', '기타'];
 const pageSize = 25;
 
 function isWeekend(transactionAt: string | null) {
@@ -123,7 +122,7 @@ export function TransactionTable({ applicationPeriodStart, applicationPeriodEnd,
     columnHelper.accessor('cardCompany', { header: () => <span className="whitespace-nowrap">카드사</span>, cell: ({ getValue }) => <span className="whitespace-nowrap" title={getValue()}>{displayCardCompany(getValue())}</span> }),
     columnHelper.accessor('merchant', { header: '가맹점', cell: ({ row, getValue }) => <div className="max-w-52 truncate" title={`${row.original.sourceFile} ${row.original.sourceRow}행`}>{getValue()}</div> }),
     columnHelper.accessor('actualAmount', { header: '실사용금액', cell: ({ getValue }) => <span className="numeric block text-right">{getValue() === null ? '-' : `${money.format(getValue()!)}원`}</span> }),
-    columnHelper.display({ id: 'category', header: '실사용 내역 구분', cell: ({ row }) => <NativeSelect value={row.original.category} options={categories} onChange={(value) => onCategoryChange(row.original, value)} /> }),
+    columnHelper.display({ id: 'category', header: '실사용 내역 구분', cell: ({ row }) => <NativeSelect value={row.original.category} options={[...expenseCategories]} onChange={(value) => onCategoryChange(row.original, value)} /> }),
     columnHelper.display({ id: 'customer', header: '고객사', cell: ({ row }) => <CellInput compact value={row.original.customer} onChange={(customer) => onUpdate(row.original.id, { customer })} /> }),
     columnHelper.display({ id: 'businessType', header: '업무', cell: ({ row }) => <NativeSelect value={row.original.businessType} options={['프로젝트', '유지보수', '링스테크내부', '기타']} onChange={(businessType) => onUpdate(row.original.id, { businessType: businessType as BusinessType })} /> }),
     columnHelper.display({ id: 'region', header: '지역', cell: ({ row }) => <NativeSelect value={row.original.region} options={['서울', '지방']} onChange={(region) => onUpdate(row.original.id, { region: region as Region, ...(region === '서울' ? { tripPeriod: '' } : {}) })} /> }),

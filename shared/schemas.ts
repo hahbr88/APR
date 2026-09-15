@@ -7,8 +7,38 @@ const nullableAmountSchema = z.number().finite().nullable();
 
 export const businessTypeSchema = z.enum(['프로젝트', '유지보수', '링스테크내부', '기타']);
 export const regionSchema = z.enum(['서울', '지방']);
-export const categorySourceSchema = z.enum(['remembered', 'rule', 'default']);
+export const categorySourceSchema = z.enum(['remembered', 'rule', 'default', 'ai']);
 export const cancellationMatchSchema = z.enum(['approvalNumber', 'merchantAmount', 'ambiguous', 'unmatched']);
+export const llmProviderSchema = z.enum(['gemini', 'groq']);
+export const AI_SUGGESTION_BATCH_SIZE = 20;
+export const expenseCategories = ['아침식대', '점심식대', '저녁식대', '식대', '식대/소모품비', '숙박비', '교통비', '차량유지비', '소모품비', '복리후생비', '기타'] as const;
+
+const aiPreferenceFields = {
+  enabled: z.boolean(),
+  provider: llmProviderSchema,
+  model: z.string().trim().min(1).max(100),
+  companyGuidelines: z.string().trim().max(5000),
+  categoryGuidelines: z.string().trim().max(5000),
+  reasonMaxLength: z.number().int().min(5).max(100),
+};
+
+export const DEFAULT_AI_PREFERENCES = {
+  enabled: false,
+  provider: 'gemini',
+  model: 'gemini-3.8-flash',
+  companyGuidelines: '',
+  categoryGuidelines: '',
+  reasonMaxLength: 30,
+} as const;
+
+export const aiPreferencesSchema = z.strictObject(aiPreferenceFields);
+export const aiSettingsUpdateSchema = z.strictObject({ ...aiPreferenceFields, apiKey: z.string().trim().min(8).max(500).optional() });
+export const aiSettingsResponseSchema = z.strictObject({
+  ...aiPreferenceFields,
+  keyConfigured: z.boolean(),
+  keyHint: z.string().max(20).nullable(),
+  persistentKeyStorage: z.boolean(),
+});
 
 export const documentSchema = z.strictObject({
   applicant: z.string().trim().max(50).optional(), receiptDate: optionalDateSchema,
@@ -42,22 +72,46 @@ export const classificationBodySchema = z.strictObject({
 export const appSettingsSchema = z.strictObject({
   rememberedApplicant: z.string().trim().min(1).max(50).nullable(),
 });
+export const aiSuggestionSchema = z.strictObject({
+  id: z.string().min(1),
+  category: z.enum(expenseCategories),
+  reason: z.string().trim().min(1).max(100),
+  needsReview: z.boolean().default(true),
+});
+export const aiSuggestionRequestSchema = z.strictObject({
+  items: z.array(transactionSchema).min(1).max(AI_SUGGESTION_BATCH_SIZE),
+});
+export const aiSuggestionListSchema = z.array(aiSuggestionSchema);
 export const fileErrorSchema = z.strictObject({ file: z.string().max(260), message: z.string().max(500) });
 export const draftSchema = z.strictObject({
   id: z.string().optional(), name: z.string().trim().min(1).max(100).optional(), document: documentSchema.optional(),
   items: z.array(transactionSchema).max(5000), fileErrors: z.array(fileErrorSchema).max(100).optional(),
+  aiSuggestions: z.array(aiSuggestionSchema).max(5000).optional(),
   createdAt: z.string().optional(), updatedAt: z.string().optional(),
 });
 export const draftListSchema = z.array(draftSchema);
+export const recoveryDraftSchema = z.strictObject({
+  document: documentSchema,
+  items: z.array(transactionSchema).min(1).max(5000),
+  fileErrors: z.array(fileErrorSchema).max(100),
+  aiSuggestions: z.array(aiSuggestionSchema).max(5000),
+  updatedAt: z.string().datetime(),
+});
 
 export type Transaction = z.infer<typeof transactionSchema>;
 export type DocumentInfo = z.infer<typeof documentSchema>;
 export type Draft = z.infer<typeof draftSchema>;
+export type RecoveryDraft = z.infer<typeof recoveryDraftSchema>;
 export type BusinessType = z.infer<typeof businessTypeSchema>;
 export type Region = z.infer<typeof regionSchema>;
 export type CategorySource = z.infer<typeof categorySourceSchema>;
 export type FileError = z.infer<typeof fileErrorSchema>;
 export type AppSettings = z.infer<typeof appSettingsSchema>;
+export type AiPreferences = z.infer<typeof aiPreferencesSchema>;
+export type AiSettingsUpdate = z.infer<typeof aiSettingsUpdateSchema>;
+export type AiSettingsResponse = z.infer<typeof aiSettingsResponseSchema>;
+export type AiSuggestion = z.infer<typeof aiSuggestionSchema>;
+export type LlmProviderName = z.infer<typeof llmProviderSchema>;
 
 export interface PreviewIssue { id: string; message: string }
 export interface PreviewMapping { id: string; merchant: string; category: string; reason: string; resolutionRow: number; expenseRow: number }

@@ -1,4 +1,4 @@
-import type { AppSettings, DocumentInfo, Draft, ImportResult, PreviewResult, Transaction } from '../../../shared/schemas';
+import type { AiSettingsResponse, AiSettingsUpdate, AiSuggestion, AppSettings, DocumentInfo, Draft, ImportResult, PreviewResult, RecoveryDraft, Transaction } from '../../../shared/schemas';
 import { expenseResolutionFilename } from '../../../shared/filenames';
 
 export class ApiError extends Error {
@@ -43,6 +43,33 @@ export async function updateAppSettings(settings: AppSettings): Promise<AppSetti
   }));
 }
 
+export async function getAiSettings(): Promise<AiSettingsResponse> {
+  return parseResponse(await fetch('/api/ai/settings'));
+}
+
+export async function updateAiSettings(settings: AiSettingsUpdate): Promise<AiSettingsResponse> {
+  return parseResponse(await fetch('/api/ai/settings', {
+    method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(settings),
+  }));
+}
+
+export async function deleteAiKey(): Promise<AiSettingsResponse> {
+  return parseResponse(await fetch('/api/ai/key', { method: 'DELETE' }));
+}
+
+export async function testAiConnection(settings: AiSettingsUpdate): Promise<void> {
+  await parseResponse(await fetch('/api/ai/test', {
+    method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(settings),
+  }));
+}
+
+export async function createAiSuggestions(items: Transaction[]): Promise<AiSuggestion[]> {
+  const result = await parseResponse<{ suggestions: AiSuggestion[] }>(await fetch('/api/ai/suggest', {
+    method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ items }),
+  }));
+  return result.suggestions;
+}
+
 export async function listDrafts(): Promise<Draft[]> {
   return parseResponse(await fetch('/api/drafts'));
 }
@@ -55,6 +82,20 @@ export async function saveDraft(draft: Draft): Promise<Draft> {
 
 export async function deleteDraft(id: string): Promise<void> {
   await parseResponse(await fetch(`/api/drafts/${encodeURIComponent(id)}`, { method: 'DELETE' }));
+}
+
+export async function getRecoveryDraft(): Promise<RecoveryDraft | null> {
+  return parseResponse(await fetch('/api/recovery'));
+}
+
+export async function saveRecoveryDraft(recovery: RecoveryDraft): Promise<RecoveryDraft> {
+  return parseResponse(await fetch('/api/recovery', {
+    method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(recovery),
+  }));
+}
+
+export async function deleteRecoveryDraft(): Promise<void> {
+  await parseResponse(await fetch('/api/recovery', { method: 'DELETE' }));
 }
 
 export async function downloadPaymentRequest(items: Transaction[], document: DocumentInfo): Promise<void> {

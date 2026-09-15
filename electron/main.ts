@@ -1,10 +1,11 @@
-import { app, BrowserWindow, dialog, session } from 'electron';
+import { app, BrowserWindow, dialog, session, shell } from 'electron';
 import fs from 'node:fs/promises';
 import type { Server } from 'node:http';
 import path from 'node:path';
 import { configurePaymentRequestTemplate } from '../src/exporter.js';
 import { configureStorageDirectory } from '../src/storage.js';
 import { startServer } from '../server.js';
+import { configureEncryptedLlmKeys } from './llm-secret-store.js';
 
 let mainWindow: BrowserWindow | null = null;
 let localServer: Server | null = null;
@@ -28,6 +29,7 @@ function createWindow(): void {
     autoHideMenuBar: true,
     backgroundColor: '#f6faf7',
     title: '지출결의서 작성',
+    icon: resourcePath('assets', 'icons', 'windows', 'icon.ico'),
     webPreferences: {
       contextIsolation: true,
       nodeIntegration: false,
@@ -36,7 +38,15 @@ function createWindow(): void {
   });
 
   mainWindow.once('ready-to-show', () => mainWindow?.show());
-  mainWindow.webContents.setWindowOpenHandler(() => ({ action: 'deny' }));
+  mainWindow.webContents.setWindowOpenHandler(({ url }) => {
+    try {
+      const externalUrl = new URL(url);
+      if (externalUrl.protocol === 'https:' && externalUrl.hostname === 'github.com' && externalUrl.pathname.startsWith('/hahbr88/APR/issues')) {
+        void shell.openExternal(externalUrl.toString());
+      }
+    } catch { /* 잘못된 외부 URL은 열지 않습니다. */ }
+    return { action: 'deny' };
+  });
   mainWindow.webContents.on('will-navigate', (event, url) => {
     if (!url.startsWith(applicationUrl)) event.preventDefault();
   });
@@ -45,7 +55,9 @@ function createWindow(): void {
 }
 
 async function startDesktopApp(): Promise<void> {
-  configureStorageDirectory(path.join(app.getPath('userData'), 'data'));
+  const dataDirectory = path.join(app.getPath('userData'), 'data');
+  configureStorageDirectory(dataDirectory);
+  configureEncryptedLlmKeys(dataDirectory);
   const templatePath = resourcePath('assets', 'payment-request-template.xlsx');
   await fs.access(templatePath);
   configurePaymentRequestTemplate(templatePath);

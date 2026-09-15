@@ -10,6 +10,12 @@ interface Props {
   onUpload: (files: File[]) => Promise<void>;
 }
 
+function formatFileSize(bytes: number): string {
+  if (bytes < 1024) return `${bytes}B`;
+  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(bytes < 10 * 1024 ? 1 : 0)}KB`;
+  return `${(bytes / 1024 / 1024).toFixed(1)}MB`;
+}
+
 export function FileUpload({ busy, stats, onUpload }: Props) {
   const inputRef = useRef<HTMLInputElement>(null);
   const [files, setFiles] = useState<File[]>([]);
@@ -44,7 +50,7 @@ export function FileUpload({ busy, stats, onUpload }: Props) {
       <input ref={inputRef} className="sr-only" type="file" accept=".xlsx,.xls" multiple onChange={(event) => selectFiles(event.target.files || [])} />
       {unsupportedCount > 0 && <p className="text-sm text-destructive" role="alert">지원하지 않는 형식의 파일 {unsupportedCount}개를 제외했습니다.</p>}
       {files.length > 0 && <div className="grid gap-2"><div className="flex items-center justify-between"><p className="text-sm font-medium">선택한 파일 {files.length}개</p><Button type="button" size="sm" variant="ghost" disabled={busy} onClick={() => { setFiles([]); setUnsupportedCount(0); if (inputRef.current) inputRef.current.value = ''; }}><X />선택 해제</Button></div><div className="grid gap-2 sm:grid-cols-2">
-        {files.map((file) => <div key={`${file.name}-${file.size}-${file.lastModified}`} className="flex min-w-0 items-center gap-3 rounded-lg border bg-background px-3 py-2"><FileSpreadsheet className="size-4 shrink-0 text-primary" /><span className="truncate text-sm">{file.name}</span><span className="ml-auto shrink-0 text-xs text-muted-foreground">{(file.size / 1024 / 1024).toFixed(1)}MB</span></div>)}
+        {files.map((file) => <div key={`${file.name}-${file.size}-${file.lastModified}`} className="flex min-w-0 items-center gap-3 rounded-lg border bg-background px-3 py-2"><FileSpreadsheet className="size-4 shrink-0 text-primary" /><span className="truncate text-sm">{file.name}</span><span className="ml-auto shrink-0 text-xs text-muted-foreground">{formatFileSize(file.size)}</span></div>)}
       </div></div>}
       <Button className="h-11 w-full sm:mx-auto sm:max-w-72" disabled={busy || !files.length} onClick={() => void onUpload(files)}>{busy ? <LoaderCircle className="animate-spin" /> : <UploadCloud />}{busy ? '카드 내역 분석 중' : '선택한 파일 분석'}</Button>
       {stats && <div className="rounded-xl bg-primary/8 px-4 py-3 text-center text-sm text-primary">{stats.files}개 파일 · {stats.parsed}건 분석 · 취소 {stats.cancelled}건(원거래 연결 {stats.linkedCancellations}건 · 확인 필요 {stats.unmatchedCancellations}건) · 중복 의심 {stats.duplicates}건 · 행 오류 {stats.rowErrors}건</div>}

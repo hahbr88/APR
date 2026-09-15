@@ -6,12 +6,14 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { randomUUID } from 'node:crypto';
 import { normalizeMerchant } from './src/classifier.js';
-import { classificationStore, draftStore, settingsStore } from './src/storage.js';
+import { classificationStore, draftStore, recoveryStore, settingsStore } from './src/storage.js';
 import { linkCancellations, markDuplicates, parseCardFile } from './src/parsers.js';
 import { createPaymentRequest, validateAndPreview } from './src/exporter.js';
 import type { Transaction } from './src/types.js';
-import { appSettingsSchema, classificationBodySchema, draftSchema, itemsBodySchema } from './shared/schemas.js';
+import { appSettingsSchema, classificationBodySchema, draftSchema, itemsBodySchema, recoveryDraftSchema } from './shared/schemas.js';
 import { expenseResolutionFilename } from './shared/filenames.js';
+import { aiSettingsUpdateSchema, aiSuggestionRequestSchema } from './shared/schemas.js';
+import { getAiSettings, removeAiKey, saveAiSettings, suggestTransactions, testAiConnection } from './src/llm/service.js';
 
 const upload = multer({
   storage: multer.memoryStorage(),
@@ -107,6 +109,33 @@ export function createExpenseResolutionApp(staticDirectory = path.resolve('dist/
     return response.json(await settingsStore.save(parsed.data));
   });
 
+  app.get('/api/ai/settings', async (_request, response) => {
+    response.json(await getAiSettings());
+  });
+
+  app.put('/api/ai/settings', async (request, response) => {
+    const parsed = aiSettingsUpdateSchema.safeParse(request.body);
+    if (!parsed.success) return invalidBody(response, parsed.error.issues);
+    return response.json(await saveAiSettings(parsed.data));
+  });
+
+  app.delete('/api/ai/key', async (_request, response) => {
+    response.json(await removeAiKey());
+  });
+
+  app.post('/api/ai/test', async (request, response) => {
+    const parsed = aiSettingsUpdateSchema.safeParse(request.body);
+    if (!parsed.success) return invalidBody(response, parsed.error.issues);
+    await testAiConnection(parsed.data);
+    response.json({ ok: true });
+  });
+
+  app.post('/api/ai/suggest', async (request, response) => {
+    const parsed = aiSuggestionRequestSchema.safeParse(request.body);
+    if (!parsed.success) return invalidBody(response, parsed.error.issues);
+    response.json({ suggestions: await suggestTransactions(parsed.data.items) });
+  });
+
   app.get('/api/drafts', async (_request, response) => {
     response.json(await draftStore.all());
   });
@@ -120,6 +149,21 @@ export function createExpenseResolutionApp(staticDirectory = path.resolve('dist/
   app.delete('/api/drafts/:id', async (request, response) => {
     const removed = await draftStore.remove(request.params.id);
     response.status(removed ? 204 : 404).end();
+  });
+
+  app.get('/api/recovery', async (_request, response) => {
+    response.json(await recoveryStore.get());
+  });
+
+  app.put('/api/recovery', async (request, response) => {
+    const parsed = recoveryDraftSchema.safeParse(request.body);
+    if (!parsed.success) return invalidBody(response, parsed.error.issues);
+    response.json(await recoveryStore.save(parsed.data));
+  });
+
+  app.delete('/api/recovery', async (_request, response) => {
+    await recoveryStore.remove();
+    response.status(204).end();
   });
 
   app.post('/api/preview', (request, response) => {

@@ -9,8 +9,11 @@ files:
 extraResources:
   - from: assets/payment-request-template.xlsx
     to: assets/payment-request-template.xlsx
+  - from: assets/icons/windows/icon.ico
+    to: assets/icons/windows/icon.ico
 win:
   executableName: AutoPaymentRequest
+  icon: assets/icons/windows/icon.ico
   target:
     - target: portable
       arch:

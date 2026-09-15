@@ -10,7 +10,7 @@ export const DEFAULT_RULES: ClassificationRule[] = [
   { pattern: /(택시|티머니|카카오\s*T|우버)/i, category: '교통비' },
   { pattern: /(주차|주유|SK에너지|GS칼텍스|현대오일뱅크|S-OIL)/i, category: '차량유지비' },
   { pattern: /(GS25|지에스25|CU|씨유|세븐일레븐|이마트24)/i, category: '식대/소모품비' },
-  { pattern: /(식당|커피|카페|스타벅스|맥도날드|버거킹|KFC|멘야)/i, category: '식대' },
+  { pattern: /(식당|커피|카페|스타벅스|맥도날드|버거킹|비케이알|KFC|멘야)/i, category: '식대' },
   { pattern: /(다이소|문구|오피스디포)/i, category: '소모품비' },
 ];
 

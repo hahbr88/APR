@@ -17,7 +17,7 @@
     "electron:dir": "pnpm build && electron-builder --dir",
     "electron:dist": "pnpm build && electron-builder --win portable nsis",
     "typecheck": "tsc -p tsconfig.json && tsc -p client/tsconfig.json --noEmit",
-    "test": "tsx test/classifier.test.ts && tsx test/schema.test.ts && tsx test/storage.test.ts && tsx test/integration.test.ts"
+    "test": "tsx test/classifier.test.ts && tsx test/schema.test.ts && tsx test/storage.test.ts && tsx test/llm.test.ts && tsx test/integration.test.ts"
   },
   "engines": {
     "node": ">=20"

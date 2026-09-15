@@ -2,7 +2,7 @@ import fs from 'node:fs/promises';
 import path from 'node:path';
 import { randomUUID } from 'node:crypto';
 import type { Draft } from './types.js';
-import { appSettingsSchema, draftListSchema, type AppSettings } from '../shared/schemas.js';
+import { aiPreferencesSchema, appSettingsSchema, DEFAULT_AI_PREFERENCES, draftListSchema, recoveryDraftSchema, type AiPreferences, type AppSettings, type RecoveryDraft } from '../shared/schemas.js';
 
 let dataDirectory = path.resolve('data');
 
@@ -20,6 +20,14 @@ function draftFile(): string {
 
 function settingsFile(): string {
   return path.join(dataDirectory, 'settings.json');
+}
+
+function aiSettingsFile(): string {
+  return path.join(dataDirectory, 'ai-settings.json');
+}
+
+function recoveryFile(): string {
+  return path.join(dataDirectory, 'recovery-draft.json');
 }
 
 async function readJson<T>(file: string, fallback: T): Promise<T> {
@@ -86,5 +94,44 @@ export const settingsStore = {
     const validated = appSettingsSchema.parse(settings);
     await writeJson(settingsFile(), validated);
     return validated;
+  },
+};
+
+export const aiSettingsStore = {
+  async all(): Promise<AiPreferences> {
+    const stored = await readJson<unknown>(aiSettingsFile(), DEFAULT_AI_PREFERENCES);
+    if (stored && typeof stored === 'object' && !Array.isArray(stored)) {
+      const { examples: _legacyExamples, ...preferences } = stored as Record<string, unknown>;
+      return aiPreferencesSchema.parse(preferences);
+    }
+    return aiPreferencesSchema.parse(stored);
+  },
+  async save(settings: AiPreferences): Promise<AiPreferences> {
+    const validated = aiPreferencesSchema.parse(settings);
+    await writeJson(aiSettingsFile(), validated);
+    return validated;
+  },
+};
+
+const RECOVERY_MAX_AGE_MS = 30 * 24 * 60 * 60 * 1000;
+
+export const recoveryStore = {
+  async get(): Promise<RecoveryDraft | null> {
+    const value = await readJson<unknown>(recoveryFile(), null);
+    if (value === null) return null;
+    const recovery = recoveryDraftSchema.parse(value);
+    if (Date.now() - Date.parse(recovery.updatedAt) > RECOVERY_MAX_AGE_MS) {
+      await this.remove();
+      return null;
+    }
+    return recovery;
+  },
+  async save(recovery: RecoveryDraft): Promise<RecoveryDraft> {
+    const validated = recoveryDraftSchema.parse({ ...recovery, updatedAt: new Date().toISOString() });
+    await writeJson(recoveryFile(), validated);
+    return validated;
+  },
+  async remove(): Promise<void> {
+    await fs.rm(recoveryFile(), { force: true });
   },
 };
