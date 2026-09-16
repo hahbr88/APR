@@ -153,7 +153,10 @@ test('선택 거래를 템플릿의 두 시트에 기록한다', async () => {
   const receiptDateCell = workbook.getWorksheet('지출결의서')?.getCell('Z9').value;
   assert.ok(receiptDateCell instanceof Date);
   assert.equal(receiptDateCell.toISOString().slice(0, 10), '2026-08-28');
-  assert.equal(workbook.getWorksheet('지출결의서')?.getCell('B17').value, '철도승차권결제');
+  assert.equal(formula(workbook.getWorksheet('지출결의서')!.getCell('B17')), '경비사용내역서!G8');
+  assert.equal(formulaResult(workbook.getWorksheet('지출결의서')!.getCell('B17')), '철도승차권결제');
+  assert.equal(formula(workbook.getWorksheet('지출결의서')!.getCell('F17')), '경비사용내역서!H8');
+  assert.equal(formula(workbook.getWorksheet('지출결의서')!.getCell('R17')), '경비사용내역서!I8');
   assert.equal(formula(workbook.getWorksheet('지출결의서')!.getCell('C6')), '"일금 "& NUMBERSTRING(R6, 1) & "원 정"');
   assert.match(String(formulaResult(workbook.getWorksheet('지출결의서')!.getCell('C6'))), /^일금 [가-힣]+원 정$/);
   assert.equal(formula(workbook.getWorksheet('지출결의서')!.getCell('R6')), 'R32');
@@ -195,7 +198,8 @@ test('두 시트는 최신 거래부터 기록하고 내부 사용은 기타 아
   await workbook.xlsx.load(output as unknown as Parameters<typeof workbook.xlsx.load>[0]);
   const resolution = workbook.getWorksheet('지출결의서')!;
   const expenses = workbook.getWorksheet('경비사용내역서')!;
-  assert.deepEqual([17, 18, 19, 20].map((row) => resolution.getCell(`B${row}`).value), ['상세 사유 D', '상세 사유 B', '상세 사유 C', '상세 사유 A']);
+  assert.deepEqual([17, 18, 19, 20].map((row) => formula(resolution.getCell(`B${row}`))), ['경비사용내역서!G19', '경비사용내역서!G8', '경비사용내역서!G20', '경비사용내역서!G9']);
+  assert.deepEqual([17, 18, 19, 20].map((row) => formulaResult(resolution.getCell(`B${row}`))), ['상세 사유 D', '상세 사유 B', '상세 사유 C', '상세 사유 A']);
   assert.deepEqual([8, 9].map((row) => expenses.getCell(`B${row}`).value), ['외부 B', '외부 A']);
   assert.deepEqual([8, 9].map((row) => expenses.getCell(`F${row}`).value), ['분류 B', '분류 A']);
   assert.deepEqual([19, 20].map((row) => expenses.getCell(`B${row}`).value), ['내부 D', '내부 C']);
@@ -220,7 +224,8 @@ test('15건을 초과하면 한 문서 안에 상세 행을 삽입한다', async
   const resolution = workbook.getWorksheet('지출결의서');
   assert.equal(workbook.getWorksheet('경비사용내역서')?.getCell('B8').value, '테스트 고객사');
   const oldest = [...selected].sort((left, right) => String(right.transactionAt || '').localeCompare(String(left.transactionAt || '')))[15];
-  assert.equal(resolution?.getCell('B32').value, oldest?.reason);
+  assert.equal(formulaResult(resolution!.getCell('B32')), oldest?.reason);
+  assert.match(String(formula(resolution!.getCell('B32'))), /^경비사용내역서!G\d+$/);
   assert.equal(resolution?.getCell('F31').border.bottom?.style, 'hair');
   assert.equal(resolution?.getCell('F32').border.bottom?.style, 'hair');
   assert.equal(resolution?.getCell('R32').border.bottom?.style, 'hair');

@@ -8,7 +8,7 @@ import { Checkbox } from '@/components/ui/checkbox';
 import { Input } from '@/components/ui/input';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { dateRangeFromTripPeriod, tripPeriodFromDateRange } from '@/lib/dates';
-import { expenseCategories, type BusinessType, type Region, type Transaction } from '../../../shared/schemas';
+import { expenseCategories, type BusinessType, type Transaction } from '../../../shared/schemas';
 
 const features = tableFeatures({});
 const columnHelper = createColumnHelper<typeof features, Transaction>();
@@ -62,7 +62,7 @@ export function TransactionTable({ applicationPeriodStart, applicationPeriodEnd,
     const normalizedQuery = query.trim().toLocaleLowerCase('ko-KR');
     const searchableText = [
       item.merchant, item.cardCompany, item.cardNumber, item.approvalNumber, item.category,
-      item.customer, item.businessType, item.reason,
+      item.customer, item.businessType, item.region, item.reason,
     ].join(' ').toLocaleLowerCase('ko-KR');
     const matchesQuery = !normalizedQuery || searchableText.includes(normalizedQuery);
     const transactionDate = item.transactionAt?.slice(0, 10) || '';
@@ -125,10 +125,10 @@ export function TransactionTable({ applicationPeriodStart, applicationPeriodEnd,
     columnHelper.display({ id: 'category', header: '실사용 내역 구분', cell: ({ row }) => <NativeSelect value={row.original.category} options={[...expenseCategories]} onChange={(value) => onCategoryChange(row.original, value)} /> }),
     columnHelper.display({ id: 'customer', header: '고객사', cell: ({ row }) => <CellInput compact value={row.original.customer} onChange={(customer) => onUpdate(row.original.id, { customer })} /> }),
     columnHelper.display({ id: 'businessType', header: '업무', cell: ({ row }) => <NativeSelect value={row.original.businessType} options={['프로젝트', '유지보수', '링스테크내부', '기타']} onChange={(businessType) => onUpdate(row.original.id, { businessType: businessType as BusinessType })} /> }),
-    columnHelper.display({ id: 'region', header: '지역', cell: ({ row }) => <NativeSelect value={row.original.region} options={['서울', '지방']} onChange={(region) => onUpdate(row.original.id, { region: region as Region, ...(region === '서울' ? { tripPeriod: '' } : {}) })} /> }),
+    columnHelper.display({ id: 'region', header: '지역', cell: ({ row }) => <CellInput compact value={row.original.region} onChange={(region) => onUpdate(row.original.id, { region })} /> }),
     columnHelper.display({ id: 'reason', header: '구분(상세 사유)', cell: ({ row }) => <CellInput className="min-w-44" value={row.original.reason} onChange={(reason) => onUpdate(row.original.id, { reason })} /> }),
     columnHelper.display({ id: 'claimAmount', header: '청구금액', cell: ({ row }) => <input className="table-input w-28 text-right numeric" type="number" min={0} value={row.original.claimAmount ?? ''} onChange={(event) => onUpdate(row.original.id, { claimAmount: Number(event.target.value || 0) })} /> }),
-    columnHelper.display({ id: 'tripPeriod', header: '출장 기간', cell: ({ row }) => <TripPeriodInput merchant={row.original.merchant} disabled={row.original.region === '서울'} value={row.original.tripPeriod} onChange={(tripPeriod) => onUpdate(row.original.id, { tripPeriod })} /> }),
+    columnHelper.display({ id: 'tripPeriod', header: '출장 기간', cell: ({ row }) => <TripPeriodInput merchant={row.original.merchant} value={row.original.tripPeriod} onChange={(tripPeriod) => onUpdate(row.original.id, { tripPeriod })} /> }),
   ]), [onCategoryChange, onSelectVisible, onUpdate]);
   const table = useTable({ features, columns, data: pageData });
 
@@ -166,19 +166,13 @@ function StatusBadge({ item }: { item: Transaction }) {
   if (item.status === '상태 미상') return <Badge className="border-amber-300 bg-amber-100 text-amber-900">확인 필요</Badge>;
   return <Badge variant="secondary" title={`원본 상태: ${item.status || '-'}`}>결제</Badge>;
 }
-function TripPeriodInput({ merchant, disabled, value, onChange }: { merchant: string; disabled: boolean; value: string; onChange: (value: string) => void }) {
+function TripPeriodInput({ merchant, value, onChange }: { merchant: string; value: string; onChange: (value: string) => void }) {
   const initialRange = dateRangeFromTripPeriod(value);
   const [startDate, setStartDate] = useState(initialRange?.startDate || '');
   const [endDate, setEndDate] = useState(initialRange?.endDate || '');
   const emittedValue = useRef<string | null>(null);
 
   useEffect(() => {
-    if (disabled) {
-      emittedValue.current = null;
-      setStartDate('');
-      setEndDate('');
-      return;
-    }
     if (emittedValue.current === value) {
       emittedValue.current = null;
       return;
@@ -187,7 +181,7 @@ function TripPeriodInput({ merchant, disabled, value, onChange }: { merchant: st
     const range = dateRangeFromTripPeriod(value);
     setStartDate(range?.startDate || '');
     setEndDate(range?.endDate || '');
-  }, [disabled, value]);
+  }, [value]);
 
   function update(nextStartDate: string, nextEndDate: string) {
     setStartDate(nextStartDate);
@@ -203,9 +197,9 @@ function TripPeriodInput({ merchant, disabled, value, onChange }: { merchant: st
   }
 
   return <div className="flex min-w-72 items-center gap-1">
-    <input aria-label={`${merchant} 출장 시작일`} className="table-input min-w-32" type="date" disabled={disabled} value={startDate} max={endDate || undefined} onChange={(event) => update(event.target.value, endDate)} />
+    <input aria-label={`${merchant} 출장 시작일`} className="table-input min-w-32" type="date" value={startDate} max={endDate || undefined} onChange={(event) => update(event.target.value, endDate)} />
     <span className="text-muted-foreground">~</span>
-    <input aria-label={`${merchant} 출장 종료일`} className="table-input min-w-32" type="date" disabled={disabled} value={endDate} min={startDate || undefined} onChange={(event) => update(startDate, event.target.value)} />
+    <input aria-label={`${merchant} 출장 종료일`} className="table-input min-w-32" type="date" value={endDate} min={startDate || undefined} onChange={(event) => update(startDate, event.target.value)} />
   </div>;
 }
 function CellInput({ value, onChange, className = '', compact = false }: { value: string; onChange: (value: string) => void; className?: string; compact?: boolean }) { return <input className={`table-input ${className}`} style={compact ? { minWidth: '6rem', width: '6rem' } : undefined} value={value} onChange={(event) => onChange(event.target.value)} />; }

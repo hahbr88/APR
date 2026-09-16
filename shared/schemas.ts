@@ -6,7 +6,7 @@ const optionalDateSchema = z.union([dateSchema, z.literal('')]).optional();
 const nullableAmountSchema = z.number().finite().nullable();
 
 export const businessTypeSchema = z.enum(['프로젝트', '유지보수', '링스테크내부', '기타']);
-export const regionSchema = z.enum(['서울', '지방']);
+export const regionSchema = z.string().trim().min(1).max(50);
 export const categorySourceSchema = z.enum(['remembered', 'rule', 'default', 'ai']);
 export const cancellationMatchSchema = z.enum(['approvalNumber', 'merchantAmount', 'ambiguous', 'unmatched']);
 export const llmProviderSchema = z.enum(['gemini', 'groq']);

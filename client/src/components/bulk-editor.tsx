@@ -12,18 +12,15 @@ interface BulkFormValues { customer: string; businessType: BusinessType; region:
 
 export function BulkEditor({ onApply, layout = 'card', selectedCount }: { onApply: (values: BulkValues) => void; layout?: 'card' | 'panel'; selectedCount?: number }) {
   const [values, setValues] = useState<BulkFormValues>({ customer: '', businessType: '프로젝트', region: '서울', tripStart: '', tripEnd: '' });
-  const tripPeriod = values.region === '지방' ? tripPeriodFromDateRange(values.tripStart, values.tripEnd) : '';
-  const dateError = values.region === '지방' && tripPeriod === null
+  const tripPeriod = tripPeriodFromDateRange(values.tripStart, values.tripEnd);
+  const dateError = tripPeriod === null
     ? (!values.tripStart || !values.tripEnd ? '출장 시작일과 종료일을 모두 선택해 주세요.' : '출장 시작일은 종료일보다 늦을 수 없습니다.')
     : '';
 
-  function changeRegion(region: Region) {
-    setValues((current) => ({ ...current, region, tripStart: region === '서울' ? '' : current.tripStart, tripEnd: region === '서울' ? '' : current.tripEnd }));
-  }
-
   function apply() {
-    if (tripPeriod === null) return;
-    onApply({ customer: values.customer, businessType: values.businessType, region: values.region, tripPeriod });
+    const region = values.region.trim();
+    if (tripPeriod === null || !region) return;
+    onApply({ customer: values.customer, businessType: values.businessType, region, tripPeriod });
   }
 
   return (
@@ -32,12 +29,12 @@ export function BulkEditor({ onApply, layout = 'card', selectedCount }: { onAppl
       <CardContent className={layout === 'panel' ? 'grid gap-4 pt-6' : 'grid gap-4 md:grid-cols-2 xl:grid-cols-[1.2fr_1fr_0.8fr_1fr_1fr_auto] xl:items-end'}>
         <Field label="고객사명"><Input value={values.customer} placeholder="선택 거래에 적용" onChange={(e) => setValues({ ...values, customer: e.target.value })} /></Field>
         <Field label="업무구분"><NativeSelect value={values.businessType} onChange={(value) => setValues({ ...values, businessType: value as BusinessType })} options={['프로젝트', '유지보수', '링스테크내부', '기타']} /></Field>
-        <Field label="지역구분"><NativeSelect value={values.region} onChange={(value) => changeRegion(value as Region)} options={['서울', '지방']} /></Field>
-        <Field label="출장 시작일"><Input type="date" disabled={values.region === '서울'} value={values.tripStart} max={values.tripEnd || undefined} onChange={(e) => setValues({ ...values, tripStart: e.target.value })} /></Field>
-        <Field label="출장 종료일"><Input type="date" disabled={values.region === '서울'} value={values.tripEnd} min={values.tripStart || undefined} onChange={(e) => setValues({ ...values, tripEnd: e.target.value })} /></Field>
-        <Button variant="secondary" disabled={Boolean(dateError)} onClick={apply}><ListChecks />일괄 적용</Button>
+        <Field label="지역구분"><Input value={values.region} placeholder="예: 서울, 세종" onChange={(e) => setValues({ ...values, region: e.target.value })} /></Field>
+        <Field label="출장 시작일"><Input type="date" value={values.tripStart} max={values.tripEnd || undefined} onChange={(e) => setValues({ ...values, tripStart: e.target.value })} /></Field>
+        <Field label="출장 종료일"><Input type="date" value={values.tripEnd} min={values.tripStart || undefined} onChange={(e) => setValues({ ...values, tripEnd: e.target.value })} /></Field>
+        <Button variant="secondary" disabled={Boolean(dateError) || !values.region.trim()} onClick={apply}><ListChecks />일괄 적용</Button>
         {dateError && <p className="col-span-full text-sm text-destructive" role="alert">{dateError}</p>}
-        {values.region === '지방' && tripPeriod && <p className="col-span-full text-xs text-muted-foreground">적용될 출장 기간: {tripPeriod}</p>}
+        {tripPeriod && <p className="col-span-full text-xs text-muted-foreground">적용될 출장 기간: {tripPeriod}</p>}
       </CardContent>
     </Card>
   );

@@ -128,7 +128,6 @@ export function validateAndPreview(items: Transaction[], document: DocumentInfo 
     for (const message of item.parseErrors) errors.push({ id: item.id, message });
     if (!item.customer) warnings.push({ id: item.id, message: '고객사명이 비어 있습니다.' });
     if (!item.category) warnings.push({ id: item.id, message: '실사용 내역 구분이 비어 있습니다.' });
-    if (item.region === '지방' && !item.tripPeriod) warnings.push({ id: item.id, message: '지방 출장 기간이 비어 있습니다.' });
     if (item.claimAmount > item.actualAmount) warnings.push({ id: item.id, message: '청구금액이 실사용금액보다 큽니다.' });
     if (item.duplicate) warnings.push({ id: item.id, message: '중복으로 의심되는 거래입니다.' });
     if (item.status === '상태 미상') warnings.push({ id: item.id, message: '승인·취소 상태를 확인할 수 없습니다.' });
@@ -315,10 +314,6 @@ export async function createPaymentRequest(items: Transaction[], document: Docum
 
   selected.forEach((item, index) => {
     const resolutionRow = resolutionDetailRows[index]!;
-    resolution.getCell(`B${resolutionRow}`).value = item.reason;
-    resolution.getCell(`F${resolutionRow}`).value = item.actualAmount;
-    resolution.getCell(`R${resolutionRow}`).value = item.claimAmount;
-
     const expenseRow = expenseLayout.rowsById.get(item.id)!;
     expenses.getCell(`B${expenseRow}`).value = item.customer;
     expenses.getCell(`C${expenseRow}`).value = item.businessType;
@@ -329,6 +324,10 @@ export async function createPaymentRequest(items: Transaction[], document: Docum
     expenses.getCell(`H${expenseRow}`).value = item.actualAmount;
     expenses.getCell(`I${expenseRow}`).value = item.claimAmount;
     expenses.getCell(`J${expenseRow}`).value = item.tripPeriod;
+
+    resolution.getCell(`B${resolutionRow}`).value = { formula: `경비사용내역서!G${expenseRow}`, result: item.reason };
+    resolution.getCell(`F${resolutionRow}`).value = { formula: `경비사용내역서!H${expenseRow}`, result: item.actualAmount };
+    resolution.getCell(`R${resolutionRow}`).value = { formula: `경비사용내역서!I${expenseRow}`, result: item.claimAmount };
   });
 
   resolution.getCell(`F${resolutionTotalRow}`).value = { formula: `SUM(F17:F${resolutionTotalRow - 1})`, result: actualTotal };

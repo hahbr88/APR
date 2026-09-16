@@ -14,6 +14,8 @@ const transaction = {
 
 test('정상 거래와 문서 요청을 검증한다', () => {
   assert.equal(itemsBodySchema.safeParse({ items: [transaction], document: { applicant: '테스트', receiptDate: '2026-08-28', periodStart: '', periodEnd: '' } }).success, true);
+  assert.equal(transactionSchema.safeParse({ ...transaction, region: '세종', tripPeriod: '' }).success, true);
+  assert.equal(transactionSchema.safeParse({ ...transaction, region: '  ' }).success, false);
 });
 
 test('음수 청구금액과 정의되지 않은 요청 필드를 거부한다', () => {
