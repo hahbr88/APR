@@ -5,6 +5,7 @@ directories:
   output: release
 files:
   - dist/**/*
+  - assets/payment-request-template.xlsx
   - package.json
 extraResources:
   - from: assets/payment-request-template.xlsx

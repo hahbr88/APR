@@ -24,6 +24,21 @@ function resourcePath(...segments: string[]): string {
   return app.isPackaged ? path.join(process.resourcesPath, ...segments) : applicationPath(...segments);
 }
 
+async function resolvePaymentRequestTemplate(): Promise<string> {
+  const candidates = app.isPackaged
+    ? [resourcePath('assets', 'payment-request-template.xlsx'), applicationPath('assets', 'payment-request-template.xlsx')]
+    : [applicationPath('assets', 'payment-request-template.xlsx')];
+  for (const candidate of candidates) {
+    try {
+      await fs.access(candidate);
+      return candidate;
+    } catch {
+      // Portable builds can occasionally lose an extracted extraResource. Fall back to the copy in app.asar.
+    }
+  }
+  throw new Error(`지출결의서 템플릿을 찾을 수 없습니다: ${candidates.join(', ')}`);
+}
+
 function createWindow(): void {
   mainWindow = new BrowserWindow({
     width: 1440,
@@ -63,8 +78,7 @@ async function startDesktopApp(): Promise<void> {
   const dataDirectory = path.join(app.getPath('userData'), 'data');
   configureStorageDirectory(dataDirectory);
   configureEncryptedLlmKeys(dataDirectory);
-  const templatePath = resourcePath('assets', 'payment-request-template.xlsx');
-  await fs.access(templatePath);
+  const templatePath = await resolvePaymentRequestTemplate();
   configurePaymentRequestTemplate(templatePath);
   const running = await startServer({ port: 0, staticDirectory: applicationPath('dist', 'client') });
   localServer = running.server;

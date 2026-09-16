@@ -2,6 +2,7 @@ node_modules/
 .pnpm-store/
 dist/
 release/
+release-rebuild/
 data/*.json
 !data/.gitkeep
 .DS_Store
