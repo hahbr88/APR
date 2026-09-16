@@ -313,7 +313,7 @@ export function App() {
       customer: values.customer || item.customer,
       businessType: values.businessType,
       region: values.region,
-      tripPeriod: values.region === '서울' ? '' : (values.tripPeriod || item.tripPeriod),
+      tripPeriod: values.tripPeriod || item.tripPeriod,
     }));
     invalidatePreview();
     setBulkEditorOpen(false);
