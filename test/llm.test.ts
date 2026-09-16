@@ -25,7 +25,7 @@ test('Gemini 요청에서 결제 식별정보를 제외하고 구조화된 추�
     return new Response(JSON.stringify({ candidates: [{ content: { parts: [{ text: JSON.stringify([{ id: transaction.id, category: '점심식대', reason: '프로젝트 회의 전 간단 점심' }]) }] } }] }), { status: 200, headers: { 'Content-Type': 'application/json' } });
   }) as typeof fetch;
   try {
-    const result = await getLlmProvider('gemini').suggest('test-key', { ...DEFAULT_AI_PREFERENCES }, [transaction]);
+    const result = await getLlmProvider('gemini').suggest('test-key', { ...DEFAULT_AI_PREFERENCES, provider: 'gemini', model: 'gemini-3.8-flash' }, [transaction]);
     assert.equal(result[0]?.category, '점심식대');
     assert.equal(result[0]?.reason, '점심 식사');
     assert.equal(result[0]?.needsReview, true);
@@ -47,7 +47,7 @@ test('종합 판매처가 반환한 구체적인 품목을 일반 사유로 바�
     { id: onlineStore.id, category: '소모품비', reason: '사무용 프린터 잉크 주문' },
   ]) }] } }] }), { status: 200, headers: { 'Content-Type': 'application/json' } })) as typeof fetch;
   try {
-    const result = await getLlmProvider('gemini').suggest('test-key', { ...DEFAULT_AI_PREFERENCES }, [onlineStore]);
+    const result = await getLlmProvider('gemini').suggest('test-key', { ...DEFAULT_AI_PREFERENCES, provider: 'gemini', model: 'gemini-3.8-flash' }, [onlineStore]);
     assert.equal(result[0]?.reason, '사무용 소모품 구입');
     assert.equal(result[0]?.needsReview, true);
   } finally {
@@ -62,7 +62,7 @@ test('비케이알을 버거킹 식사 거래로 보수적으로 정규화한다
     { id: burgerKing.id, category: '소모품비', reason: '사무용 스테이플러 구매' },
   ]) }] } }] }), { status: 200, headers: { 'Content-Type': 'application/json' } })) as typeof fetch;
   try {
-    const result = await getLlmProvider('gemini').suggest('test-key', { ...DEFAULT_AI_PREFERENCES }, [burgerKing]);
+    const result = await getLlmProvider('gemini').suggest('test-key', { ...DEFAULT_AI_PREFERENCES, provider: 'gemini', model: 'gemini-3.8-flash' }, [burgerKing]);
     assert.equal(result[0]?.category, '저녁식대');
     assert.equal(result[0]?.reason, '저녁 식사');
     assert.equal(result[0]?.needsReview, false);

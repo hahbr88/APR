@@ -61,6 +61,10 @@ export function createExpenseResolutionApp(staticDirectory = path.resolve('dist/
     const fileErrors: Array<{ file: string; message: string }> = [];
 
     for (const file of files) {
+      if (!/\.xlsx$/i.test(file.originalname)) {
+        fileErrors.push({ file: file.originalname, message: '지원하지 않는 파일 형식입니다. 카드사에서 내려받은 XLSX 파일을 사용해 주세요.' });
+        continue;
+      }
       try {
         transactions.push(...await parseCardFile(file, remembered));
       } catch (error) {

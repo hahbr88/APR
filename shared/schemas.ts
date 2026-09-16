@@ -24,8 +24,8 @@ const aiPreferenceFields = {
 
 export const DEFAULT_AI_PREFERENCES = {
   enabled: false,
-  provider: 'gemini',
-  model: 'gemini-3.8-flash',
+  provider: 'groq',
+  model: 'openai/gpt-oss-20b',
   companyGuidelines: '',
   categoryGuidelines: '',
   reasonMaxLength: 30,

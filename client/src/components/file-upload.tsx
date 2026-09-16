@@ -24,7 +24,7 @@ export function FileUpload({ busy, stats, onUpload }: Props) {
 
   function selectFiles(selected: FileList | File[]) {
     const allFiles = Array.from(selected);
-    const accepted = allFiles.filter((file) => /\.(xlsx|xls)$/i.test(file.name));
+    const accepted = allFiles.filter((file) => /\.xlsx$/i.test(file.name));
     setFiles(accepted);
     setUnsupportedCount(allFiles.length - accepted.length);
   }
@@ -38,16 +38,16 @@ export function FileUpload({ busy, stats, onUpload }: Props) {
   return <Card className="overflow-hidden border-primary/20 shadow-sm">
     <CardHeader className="text-center">
       <CardTitle>카드 내역 불러오기</CardTitle>
-      <CardDescription>삼성·신한·현대 카드만 현재 지원합니다.</CardDescription>
+      <CardDescription>삼성·신한·현대카드의 XLSX 이용내역에 최적화되어 있습니다.</CardDescription>
     </CardHeader>
     <CardContent className="grid gap-5">
       <div role="button" tabIndex={0} className={`flex min-h-64 cursor-pointer flex-col items-center justify-center rounded-2xl border-2 border-dashed px-6 py-10 text-center transition-colors ${dragging ? 'border-primary bg-primary/10' : 'border-primary/30 bg-primary/5 hover:border-primary/60 hover:bg-primary/8'}`} onClick={() => inputRef.current?.click()} onKeyDown={(event) => { if (event.key === 'Enter' || event.key === ' ') inputRef.current?.click(); }} onDragEnter={(event) => { event.preventDefault(); setDragging(true); }} onDragOver={(event) => event.preventDefault()} onDragLeave={(event) => { if (!event.currentTarget.contains(event.relatedTarget as Node | null)) setDragging(false); }} onDrop={drop}>
         <div className="mb-5 flex size-16 items-center justify-center rounded-2xl bg-primary text-primary-foreground shadow-sm"><UploadCloud className="size-8" /></div>
         <p className="text-lg font-semibold">파일을 끌어다 놓으세요</p>
         <p className="mt-2 text-sm text-muted-foreground">또는 이 영역을 눌러 파일을 선택하세요</p>
-        <p className="mt-4 text-xs text-muted-foreground">지원 형식: .xlsx, .xls · 파일당 최대 20MB</p>
+        <p className="mt-4 text-xs text-muted-foreground">지원 형식: .xlsx · 파일당 최대 20MB</p>
       </div>
-      <input ref={inputRef} className="sr-only" type="file" accept=".xlsx,.xls" multiple onChange={(event) => selectFiles(event.target.files || [])} />
+      <input ref={inputRef} className="sr-only" type="file" accept=".xlsx" multiple onChange={(event) => selectFiles(event.target.files || [])} />
       {unsupportedCount > 0 && <p className="text-sm text-destructive" role="alert">지원하지 않는 형식의 파일 {unsupportedCount}개를 제외했습니다.</p>}
       {files.length > 0 && <div className="grid gap-2"><div className="flex items-center justify-between"><p className="text-sm font-medium">선택한 파일 {files.length}개</p><Button type="button" size="sm" variant="ghost" disabled={busy} onClick={() => { setFiles([]); setUnsupportedCount(0); if (inputRef.current) inputRef.current.value = ''; }}><X />선택 해제</Button></div><div className="grid gap-2 sm:grid-cols-2">
         {files.map((file) => <div key={`${file.name}-${file.size}-${file.lastModified}`} className="flex min-w-0 items-center gap-3 rounded-lg border bg-background px-3 py-2"><FileSpreadsheet className="size-4 shrink-0 text-primary" /><span className="truncate text-sm">{file.name}</span><span className="ml-auto shrink-0 text-xs text-muted-foreground">{formatFileSize(file.size)}</span></div>)}

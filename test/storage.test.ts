@@ -23,6 +23,8 @@ test('AI 작성 기준을 API 키와 분리된 로컬 설정 파일에 저장한
   try {
     const initial = await aiSettingsStore.all();
     assert.equal(initial.enabled, false);
+    assert.equal(initial.provider, 'groq');
+    assert.equal(initial.model, 'openai/gpt-oss-20b');
     const saved = await aiSettingsStore.save({ ...initial, companyGuidelines: '확인되지 않은 출장 목적은 추측하지 않는다.' });
     assert.equal(saved.companyGuidelines, '확인되지 않은 출장 목적은 추측하지 않는다.');
     assert.equal(JSON.stringify(saved).includes('apiKey'), false);
